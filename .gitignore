@@ -1,0 +1,9 @@
+build
+samples
+tests/sound_meter_ref
+tests/*.out
+tests/*.ref
+docs/_build
+docs/_static
+docs/_template
+.vscode
