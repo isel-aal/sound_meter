@@ -136,13 +136,13 @@ float calibrator_calculate(Calibrator *cal) {
 	return LINEAR_TO_DECIBEL(sum / cal->block_number);
 }
 
-static float calibrate(float calibrated_value, float linear) {	// calibrar um valor linear
-	return (LINEAR_TO_DECIBEL(linear) + CONFIG_CALIBRATOR_REFERENCE - calibrated_value);
+static float calibrate(float calibration_delta, float linear) {
+	return (LINEAR_TO_DECIBEL(linear) + calibration_delta);
 }
 
 #if 0
-static float decalibrate(float calibrated_value, float calibrated) {	
-	return (calibrated + calibrated_value - CONFIG_CALIBRATOR_REFERENCE);
+static float decalibrate(float calibration_delta, float calibrated) {	
+	return (calibrated + calibration_delta - CONFIG_CALIBRATOR_REFERENCE);
 }
 #endif
 
@@ -152,42 +152,39 @@ Levels *levels_create(unsigned blocks_per_segment) {
 	Levels *levels = malloc(sizeof *levels);
 	if (levels == NULL)
 		return NULL;
-	levels->LApeak = malloc(blocks_per_segment * sizeof *levels->LApeak);
-	if (levels->LApeak == NULL) {
+	size_t block_data_size = blocks_per_segment * sizeof *levels->LApeak;
+	float *buffer = malloc(4 * block_data_size);
+	if (buffer == NULL) {
 		free(levels);
 		return NULL;
 	}
-	levels->LAFmax = malloc(blocks_per_segment * sizeof *levels->LApeak);
-	if (levels->LAFmax == NULL) {
-		free(levels);
-		free(levels->LApeak);
-		return NULL;
-	}
-	levels->LAFmin = malloc(blocks_per_segment * sizeof *levels->LApeak);
-	if (levels->LAFmin == NULL) {
-		free(levels);
-		free(levels->LApeak);
-		free(levels->LAFmax);
-		return NULL;
-	}
-	levels->LAE = malloc(blocks_per_segment * sizeof *levels->LApeak);
-	if (levels->LAE == NULL) {
-		free(levels);
-		free(levels->LApeak);
-		free(levels->LAFmax);
-		free(levels->LAFmin);
-		return NULL;
-	}
-	levels->segment_number = 0;
+
+	levels->LApeak = buffer;
+	levels->LAFmax = buffer += blocks_per_segment;
+	levels->LAFmin = buffer += blocks_per_segment;
+	levels->LAE = buffer += blocks_per_segment;
 	levels->block_number = 0;
+
+	size_t segment_data_size = config_struct->record_period * sizeof *levels->LAeq_db;
+	buffer = malloc(5 * segment_data_size);
+	if (buffer == NULL) {
+		free(levels->LApeak);
+		free(levels);
+		return NULL;
+	}
+	levels->LAeq_db = buffer;
+	levels->LApeak_db = buffer += config_struct->record_period;
+	levels->LAFmax_db = buffer += config_struct->record_period;
+	levels->LAFmin_db = buffer += config_struct->record_period;
+	levels->LAE_db = buffer += config_struct->record_period;
+
+	levels->segment_number = 0;
 	return levels;
 }
 
 void levels_destroy(Levels *levels) {
 	free(levels->LApeak);
-	free(levels->LAFmax);
-	free(levels->LAFmin);
-	free(levels->LAE);
+	free(levels->LAeq_db);
 	free(levels);
 }
 
@@ -222,7 +219,7 @@ void process_block(Block *block, Levels *levels) {
 	levels->block_number++;
 }
 
-void process_segment(Levels *levels, float calibrated_value) {
+void process_segment(Levels *levels, float calibration_delta) {
 	float lae = levels->LAE[0];
 	float max = levels->LAFmin[0];
 	float min = levels->LAFmax[0];
@@ -239,10 +236,10 @@ void process_segment(Levels *levels, float calibrated_value) {
 	}
 	lae = lae / levels->block_number;
 	float laeq = lae_average(lae);
-	levels->LAeq_db[levels->segment_number] = calibrate(calibrated_value, laeq);
-	levels->LAFmax_db[levels->segment_number] = calibrate(calibrated_value, max);
-	levels->LAFmin_db[levels->segment_number] = calibrate(calibrated_value, min);
-	levels->LAE_db[levels->segment_number] = calibrate(calibrated_value, lae);
-	levels->LApeak_db[levels->segment_number] = calibrate(calibrated_value, peak);
+	levels->LAeq_db[levels->segment_number] = calibrate(calibration_delta, laeq);
+	levels->LAFmax_db[levels->segment_number] = calibrate(calibration_delta, max);
+	levels->LAFmin_db[levels->segment_number] = calibrate(calibration_delta, min);
+	levels->LAE_db[levels->segment_number] = calibrate(calibration_delta, lae);
+	levels->LApeak_db[levels->segment_number] = calibrate(calibration_delta, peak);
 	levels->segment_number++;
 }

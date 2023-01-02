@@ -1,4 +1,4 @@
-/*	
+/*
 Copyright 2022 Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@ limitations under the License.
 #define INPUT_H
 
 #include <alsa/asoundlib.h>
-#include <wavelib.h>
+#include <wave.h>
+#include "config.h"
 #include "process.h"
 
 typedef struct input_device {
@@ -29,7 +30,7 @@ typedef struct input_device {
 	};
 } Input_device;
 
-int input_device_open(const char *file_name, const char *device_name);
+int input_device_open(const char *file_name, const char *device_name, Config *);
 size_t input_device_read(void *buffer, size_t frames);
 void input_device_close();
 

@@ -1,4 +1,4 @@
-/*	
+/*
 Copyright 2022 Guilherme Albano, David Meneses e Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,11 +29,6 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "config.h"
 #include "in_out.h"
 
-static char *identification = CONFIG_IDENTIFICATION;
-
-int sample_rate;
-float calibrated_value = CONFIG_CALIBRATOR_REFERENCE;
-
 static void help(char *prog_name) {
 	printf("Usage: %s [options] <source file_name>\n"
 		"options:\n"
@@ -47,7 +42,8 @@ static void help(char *prog_name) {
 		"\t-r, --sample_rate <rate>\n"
 		"\t-n, --identification <name>\n"
 		"\t-t, --duration <time>\n"
-		"\t-c, --calibrate [<time>]\n",
+		"\t-c, --calibrate [<time>]\n"
+		"\t-g, --config <file name>\n",
 		prog_name);
 }
 
@@ -71,24 +67,25 @@ int main (int argc, char *argv[]) {
 		{"identification", required_argument, 0, 'n'},
 		{"duration", required_argument, 0, 't'},
 		{"calibrate", optional_argument, 0, 'c'},
+		{"config", required_argument, 0, 'g'},
 		{0, 0, 0, 0}
 	};
 
+	int option_index, option_char;
 	int error_in_options = false;
 
-	char *option_input_device = CONFIG_INPUT_DEVICE;
+	char *option_device_filename = NULL;
 	char *option_input_filename = CONFIG_INPUT_FILENAME;
 	char *option_output_filename = NULL;
-	sample_rate = CONFIG_SAMPLE_RATE;
-	char *option_identification = CONFIG_IDENTIFICATION;
-	char *option_duration = CONFIG_DURATION;
-	char *option_output_format = CONFIG_OUTPUT_FORMAT;
-	char *option_calibrate_time = NULL;
-	int option_index, option_char;
-
+	char *option_output_extention = NULL;
+	char *option_sample_rate = NULL;
+	char *option_identification = NULL;
+	char *option_calibration_time = NULL;
+	char *option_file_config = NULL;
 	int run_duration = 0;
 
-	while ((option_char = getopt_long(argc, argv, ":hvi:o:f:r:d:l:t:c:", long_options, &option_index)) != -1) {
+	while ((option_char = getopt_long(argc, argv, ":hvi:o:f:r:d:l:t:c:g:",
+			long_options, &option_index)) != -1) {
 		switch (option_char) {
 		case 0:	//	Opções longas com afetação de flag
 			break;
@@ -99,7 +96,7 @@ int main (int argc, char *argv[]) {
 			about();
 			break;
 		case 'd':
-			option_input_device = optarg;
+			option_device_filename = optarg;
 			break;
 		case 'i':
 			option_input_filename = optarg;
@@ -108,10 +105,13 @@ int main (int argc, char *argv[]) {
 			option_output_filename = optarg;
 			break;
 		case 'f':
-			option_output_format = optarg;
+			option_output_extention = optarg;
 			break;
+		case 'g':
+			option_file_config = optarg;
+			break;	
 		case 'r': {
-			sample_rate = atoi(optarg);
+			option_sample_rate = optarg;
 			break;
 		}
 		case 'n': {
@@ -119,16 +119,16 @@ int main (int argc, char *argv[]) {
 			break;
 		}
 		case 't': {
-			option_duration = optarg;
+			run_duration = atoi(optarg);
 			break;
 		}
 		case 'c': {
-			option_calibrate_time = optarg;
+			option_calibration_time = optarg;
 			break;
 		}
 		case ':':
 			if (optopt == 'c')
-				option_calibrate_time = "5"; // CONFIG_CALIBRATION_TIME;
+				option_calibration_time = CONFIG_CALIBRATION_TIME;
 			else {
 				fprintf(stderr, "Error in option -%c argument\n", optopt);
 				error_in_options = true;
@@ -141,71 +141,141 @@ int main (int argc, char *argv[]) {
 	}
 	if (error_in_options) {
 		help(argv[0]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
-	identification = option_identification;
+
+	//	Ler as configurações em ficheiro
+
+	char *config_filename;
+	if (option_file_config != NULL)
+		config_filename = strdup(option_file_config);
+	else
+		config_filename = strdup(CONFIG_CONFIG_FILENAME);
+
+	if (config_filename[0] != '/') {
+		char *config_path = getenv("SOUND_METER_PATH_CONFIG");
+		if (config_path != NULL) {
+			char *filepath = malloc(strlen(config_path) + strlen(config_filename) + 1);
+			if (filepath == NULL) {
+				fprintf(stderr, "Out of memory\n");
+				exit(EXIT_FAILURE);
+			}
+			strcpy(filepath, config_path);
+			strcat(filepath, config_filename);
+			free(config_filename);
+			config_filename = filepath;
+		}
+	}
+
+	if (verbose_flag)
+		printf("Configuration file: %s\n", config_filename);
+
+	config_struct = config_load(config_filename);
+	if (config_struct == NULL)
+		exit(EXIT_FAILURE);
+	
+	free(config_filename);
+
+	//	As opções de linha de comando prevalecem sobre o ficheiro
+
+	if (option_device_filename != NULL) {
+		if (config_struct->input_device != NULL)
+			free(config_struct->input_device);
+		config_struct->input_device = strdup(option_device_filename);
+	}
+
+	if (option_output_extention != NULL) {
+		if (config_struct->output_extention != NULL)
+			free(config_struct->output_extention);
+		config_struct->output_extention = strdup(option_output_extention);
+	}
+
+	if (option_sample_rate != NULL) {
+		config_struct->sample_rate = atoi(option_sample_rate);
+	}
+
+	if (option_identification != NULL) {
+		if (config_struct->identification != NULL)
+			free(config_struct->identification);
+		config_struct->identification = strdup(option_identification);
+	}
+
+	if (option_calibration_time != NULL) {
+		config_struct->calibration_time = atoi(option_calibration_time);
+	}	
 
 	if (option_output_filename != NULL)
 		output_set_filename(option_output_filename, "");
 	else if (option_input_filename != NULL)
-		output_set_filename(option_input_filename, option_output_format);
-	else
-		output_set_filename(CONFIG_OUTPUT_FILENAME, option_output_format);
-
+		output_set_filename(option_input_filename, config_struct->output_extention);
 
 	if (verbose_flag)
 		printf("Program arguments:\n"
+			"\tFile config: %s\n"
 			"\tInput device: %s\n"
-			"\tOutput file_name: %s\n"
-			"\tSample Rate: %d\n"
+			"\tInput file name: %s\n"	
+			"\tOutput file name: %s\n"
+			"\tOutput directory: %s\n"
 			"\tIdentification: %s\n"
-			"\tCalibrate: %s\n\n",
-			option_input_filename != NULL? option_input_filename : option_input_device,
+			"\tSample Rate: %d\n"
+			"\tSegment duration: %d second\n"
+			"\tBlock size: %d samples\n"
+			"\tCalibration reference: %.1f db\n"
+			"\tCalibration time: %d\n"
+			"\tRecord period: %d segments\n"
+			"\tFile period: %d segments\n"
+			"\tRun duration: %d seconds\n\n",
+			config_filename,
+			config_struct->input_device,
+			option_input_filename,
 			output_get_filename(),
-			sample_rate,
-			option_identification,
-			option_calibrate_time);
+			config_struct->output_path,
+			config_struct->identification,
+			config_struct->sample_rate,
+			config_struct->segment_duration,
+			config_struct->block_size,
+			config_struct->calibration_reference,
+			config_struct->calibration_time,
+			config_struct->record_period,
+			config_struct->file_period,
+			run_duration);
 
-	if (verbose_flag && option_input_filename == NULL && option_duration != NULL)
-		printf("Duration: %s\n", option_duration);
+	//	------------------------------------------------------------------------
 
-	if (option_duration != NULL) {
-		run_duration = atoi(option_duration);
-	}
-	output_init(run_duration != 0 ? CONFIG_FILE_TIME : 0 );
+	int continous = option_input_filename == NULL && option_input_filename == NULL;
+	output_init(continous);
 
-	input_device_open(option_input_filename, option_input_device);	/* testar o resultado */
+	int result = input_device_open(option_input_filename, config_struct->input_device, config_struct);
+	if (result != 0)
+		exit(EXIT_FAILURE);
 
-	int samples_per_segment = CONFIG_SEGMENT_DURATION * sample_rate;
-	int blocks_per_segment = samples_per_segment / CONFIG_BLOCK_SIZE;
-	int last_block_size = samples_per_segment - blocks_per_segment * CONFIG_BLOCK_SIZE;
+	int samples_per_segment = config_struct->segment_duration * config_struct->sample_rate;
+	int blocks_per_segment = samples_per_segment / config_struct->block_size;
+	int last_block_size = samples_per_segment - blocks_per_segment * config_struct->block_size;
 	blocks_per_segment += last_block_size != 0;
 
 	if (verbose_flag) {
-		printf("\tSample rate: %d\n", sample_rate);
-		printf("\tSegment duration: %d second\n", CONFIG_SEGMENT_DURATION);
-		printf("\tBlock size: %d\n", CONFIG_BLOCK_SIZE);
 		printf("\tBlocks per segment: %d\n", blocks_per_segment);
 		printf("\tLast block size: %d\n\n", last_block_size);
 	}
-	Block *block = block_create(blocks_per_segment, CONFIG_BLOCK_SIZE, last_block_size);
+	Block *block = block_create(blocks_per_segment, config_struct->block_size, last_block_size);
 
 	Timeweight *twfilter = timeweight_create();
-	Afilter *afilter = afilter_create(afilter_get_coef_a(CONFIG_SAMPLE_RATE),
-									afilter_get_coef_b(CONFIG_SAMPLE_RATE), 6);
+	Afilter *afilter = afilter_create(afilter_get_coef_a(config_struct->sample_rate),
+									afilter_get_coef_b(config_struct->sample_rate), 6);
 
 	unsigned seconds = 0;	// Time elapsed based in segment duration
 
-	//-------------------------------CALIBRAÇÃO-------------------------------------------------
-	if (option_calibrate_time != NULL) {
-		unsigned calibration_time = strtoul(option_calibrate_time, NULL, 10);
-		unsigned calibration_amount = calibration_time + CONFIG_CALIBRATION_GUARD;
-		Calibrator *cal = calibrator_create(blocks_per_segment, calibration_time);
+	//-------------------------------CALIBRAÇÃO---------------------------------
+	float calibration_delta = 0;
+	if (config_struct->calibration_time > 0) {
+		unsigned calibration_amount = config_struct->calibration_time + CONFIG_CALIBRATION_GUARD;
+		Calibrator *cal = calibrator_create(blocks_per_segment, config_struct->calibration_time);
 		printf("Starting Calibration in %d seconds ...\n", calibration_amount);
 		while (1) {
 			if (seconds >= calibration_amount) {
 				printf("Calculating calibrated value...\n");
-				calibrated_value = calibrator_calculate(cal);
+				calibration_delta = config_struct->calibration_reference - calibrator_calculate(cal);
 				break;
 			}
 			unsigned block_size = block_next_size(block);
@@ -214,7 +284,7 @@ int main (int argc, char *argv[]) {
 				break;
 			block->count = block_size_read;
 
-			if (seconds >= (calibration_amount - calibration_time)) {
+			if (seconds >= (calibration_amount - config_struct->calibration_time)) {
 				block_sample_to_float(block);
 				afilter_filtering(block, afilter);
 				process_block_square(block);
@@ -223,7 +293,7 @@ int main (int argc, char *argv[]) {
 			}
 
 			if (++block->block_number == blocks_per_segment) {
-				seconds += CONFIG_SEGMENT_DURATION;
+				seconds += config_struct->segment_duration;
 				block->block_number = 0;
 				printf("%d ", seconds);
 			}
@@ -231,12 +301,11 @@ int main (int argc, char *argv[]) {
 		calibrator_destroy(cal);
 	}
 
-	//--------------------------------------------------------------------------------
-	printf("%lf <-> %lf\n", (double)CONFIG_CALIBRATOR_REFERENCE, calibrated_value);
+	printf("\tCalibration adjust: %.1f db\n", calibration_delta);
 
 	//--------------------------------------------------------------------------
 
-	printf("Starting sound level measuring...\n");
+	printf("\nStarting sound level measuring...\n");
 #if 0
 	//-----Connect to Python Server----
 	Client_Struct *cli = initClient();
@@ -245,7 +314,7 @@ int main (int argc, char *argv[]) {
 	struct sockaddr_in server;
 	connectSocket(cli, socket_desc, server);
 #endif
-	lae_average_create(CONFIG_LAEQ_TIME);
+	lae_average_create(config_struct->laeq_time);
 	Levels *levels = levels_create(blocks_per_segment);
 	while (run_duration == 0 || seconds < run_duration) {
 		unsigned block_size = block_next_size(block);
@@ -262,13 +331,13 @@ int main (int argc, char *argv[]) {
 		process_block(block, levels);
 
 		if (++block->block_number == blocks_per_segment) {
-			process_segment(levels, calibrated_value);
+			process_segment(levels, calibration_delta);
 			levels->block_number = 0;
 			block->block_number = 0;
-			seconds += CONFIG_SEGMENT_DURATION;
+			seconds += config_struct->segment_duration;
 		}
 
-		if (levels->segment_number == CONFIG_RECORD_PERIOD) {
+		if (levels->segment_number == config_struct->record_period) {
 			output_record(levels);
 			levels->segment_number = 0;
 //			cli->send_counter = cli->send_counter + 1;
@@ -284,4 +353,5 @@ int main (int argc, char *argv[]) {
 	timeweight_destroy(twfilter);
 	afilter_destroy(afilter);
 	lae_average_destroy();
+	config_destroy(config_struct);
 }

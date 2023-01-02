@@ -1,5 +1,5 @@
 
-/*	
+/*
 Copyright 2022 Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ static Input_device device;
 
 extern int sample_rate;
 
-int input_device_open(const char *file_name, const char *device_name) {
+int input_device_open(const char *file_name, const char *device_name, Config *config) {
 	if (file_name == NULL) {
 		device.device = DEVICE_SOUND_CARD;
 
@@ -39,7 +39,7 @@ int input_device_open(const char *file_name, const char *device_name) {
 									CONFIG_PCM_FORMAT,      /* mudar */
 									SND_PCM_ACCESS_RW_INTERLEAVED,
 									1,
-									CONFIG_SAMPLE_RATE,     /* configurar a partir de variável */
+									config->sample_rate,     /* configurar a partir de variável */
 									1,
 									500000);   /* 0.5 sec */
 		if (result < 0) {
@@ -61,7 +61,7 @@ int input_device_open(const char *file_name, const char *device_name) {
 			fprintf (stderr, "Can't load wave file %s\n", file_name);
 			exit(EXIT_FAILURE);
 		}
-		sample_rate = wave_get_sample_rate(device.wave);
+		config->sample_rate = wave_get_sample_rate(device.wave);
 	}
 	return 0;
 }
@@ -99,69 +99,96 @@ enum {OUTPUT_FORMAT_JSON, OUTPUT_FORMAT_CSV };
 static char *output_filename = NULL;
 static FILE *output_fd = NULL;
 
-static int output_counter;	//	Contador de ficheiros de saída
-static int output_time;		//	Tempo de corrido para o ficheiro atual
-static int output_fragment;	//	Periodo de tempo para cada ficheiro
-
 void output_file_close() {
 #if 0
 	if (output_format == OUTPUT_FORMAT_JSON)
 		json_dumpf(root, output_fd, 0);
 #endif
 	free(output_filename);
-	fclose(output_fd);
+	if (output_fd != NULL)
+		fclose(output_fd);
+	output_fd = NULL;
 }
 
+#if 0
 static char *output_new_filename(const char *base_filename, int suffix) {
-	char *current_filename = malloc(strlen(base_filename) + 3 + 1);
-	strcpy(current_filename, base_filename);
-	if (current_filename == NULL) {
+	char *filename = malloc(strlen(base_filename) + 3 + 1);
+	strcpy(filename, base_filename);
+	if (filename == NULL) {
 		fprintf(stderr, "Out of memory\n");
 		exit(-1);
 	}
-	char *end = current_filename + strlen(current_filename);
-	char *point = strrchr(current_filename, '.');
+	char *end = filename + strlen(filename);
+	char *point = strrchr(filename, '.');
 	memmove(point + 3, point, end - point + 1);
 	snprintf(point, 4, "%03d", suffix);
 	*(point + 3) = '.';
-	return current_filename;
+	return filename;
+}
+#endif
+
+static unsigned output_time;		//	Tempo de corrido para o ficheiro atual
+static time_t calendar;
+
+static char *output_new_filename(unsigned time) {
+	size_t filename_size = strlen("AAAAMMDDHHMMSS") + strlen(config_struct->output_extention) + 1;
+	char *filename = malloc(filename_size);
+	if (filename == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		exit (EXIT_FAILURE);
+	}
+	calendar += time;
+	strftime(filename, filename_size, "%Y%m%d%H%M%S", localtime(&calendar));
+	strcat(filename, config_struct->output_extention);
+	return filename;
 }
 
-static void output_file_open(char *current_filename) {
-	output_fd = fopen(current_filename, "w");
-	if (output_fd == NULL) {
-		fprintf(stderr, "fopen(%s, \"a\") error: %s\n", current_filename, strerror(errno));
-		exit(-1);
+static void output_file_open(char *filename) {
+	size_t filepath_size = strlen(config_struct->output_path) + strlen(filename) + 1;
+	char *filepath = malloc(filepath_size);
+	if (filepath == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		exit (EXIT_FAILURE);
 	}
+	strcpy(filepath, config_struct->output_path);
+	strcat(filepath, filename);
+	output_fd = fopen(filepath, "w");
+	if (output_fd == NULL) {
+		fprintf(stderr, "fopen(%s, \"w\") error: %s\n", filepath, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	free(filepath);
 	fprintf(output_fd, "LAFmax, LAFmin, LApeak, LAE, LAeq\n");
 	output_time = 0;
 }
 
 void output_record(Levels *levels) {
+	if (levels->segment_number == 0)
+		return;
+	if (output_fd == NULL)
+		output_file_open(output_filename);
 	for (unsigned i = 0; i < levels->segment_number; ++i) {
 		fprintf(output_fd, "%5.1f, %5.1f, %5.1f, %5.1f, %5.1f\n",
 			levels->LAFmax_db[i], levels->LAFmin_db[i], levels->LApeak_db[i],
 				levels->LAE_db[i], levels->LAeq_db[i]);
 
 	}
-	output_time++;
+	output_time += config_struct->record_period;
 	fflush(output_fd);
 	fsync(fileno(output_fd));
-	if (output_time == output_fragment) {
+	if (output_time >= config_struct->file_period) {
 		output_file_close();
+		output_filename = output_new_filename(config_struct->segment_duration * output_time);
+//		output_file_open(output_filename);
 		output_time = 0;
-		output_counter++;
-		char *new_filename = output_new_filename(output_filename, output_counter);
-		output_file_open(new_filename);
-		free(new_filename);
 	}
 }
 
 void output_set_filename(const char *filename, const char *extension) {
-	output_filename = realloc(output_filename, strlen(filename) + strlen(extension) + 1);
+	output_filename = malloc(strlen(filename) + strlen(extension) + 1);
 	if (output_filename == NULL) {
 		fprintf(stderr, "Out of memory\n");
-		exit (-1);
+		exit (EXIT_FAILURE);
 	}
 	strcpy(output_filename, filename);
 	strcat(output_filename, extension);
@@ -171,12 +198,11 @@ char *output_get_filename() {
 	return output_filename;
 }
 
-void output_init(int fragment_duration) {
-	output_fragment = fragment_duration;
-	if (output_fragment != 0) {
-		char *new_filename = output_new_filename(output_filename, output_counter);
-		output_file_open(new_filename);
-		free(new_filename);
+void output_init(int continous) {
+	if (continous != 0) {
+		calendar = time(NULL);
+		output_filename = output_new_filename(0);
+//		output_file_open(output_filename);
 	}
 	else
 		output_file_open(output_filename);

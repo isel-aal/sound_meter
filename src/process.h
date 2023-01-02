@@ -62,11 +62,11 @@ typedef struct {
 	float *LAE;
 	
 	unsigned segment_number;
-	float LAeq_db[CONFIG_RECORD_PERIOD];	//	Valores calculados para cada segmento, num periodo de registo
-	float LApeak_db[CONFIG_RECORD_PERIOD];
-	float LAFmax_db[CONFIG_RECORD_PERIOD];
-	float LAFmin_db[CONFIG_RECORD_PERIOD];
-	float LAE_db[CONFIG_RECORD_PERIOD];
+	float *LAeq_db;	//	Valores calculados para cada segmento, num periodo de registo
+	float *LApeak_db;
+	float *LAFmax_db;
+	float *LAFmin_db;
+	float *LAE_db;
 } Levels;
 
 Levels *levels_create(unsigned blocks_per_segment);
@@ -74,7 +74,7 @@ void levels_destroy(Levels *);
 void process_block_square(Block *buff);							// quadrado de todas as amostras
 void process_block_lapeak(Block *buff, Levels *levels);			// cálculo do lapeak
 void process_block(Block *buff, Levels *);					// cálculo dos níveis lae,lmax,lmin
-void process_segment(Levels *levels, float calibrated_value);	// cálculo dos níveis para 1 segmento
+void process_segment(Levels *levels, float calibration_delta);	// cálculo dos níveis para 1 segmento
 
 void lae_average_create(unsigned laeq_time);					//	Para cálculo de LAeq
 void lae_average_destroy();
