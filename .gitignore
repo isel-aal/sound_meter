@@ -1,5 +1,7 @@
+core*
 build
-samples
+sound_samples
+data
 tests/sound_meter_ref
 tests/*.out
 tests/*.ref
