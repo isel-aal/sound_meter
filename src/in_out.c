@@ -158,7 +158,7 @@ static void output_file_open(char *filename) {
 		exit(EXIT_FAILURE);
 	}
 	free(filepath);
-	fprintf(output_fd, "LAFmax, LAFmin, LApeak, LAE, LAeq\n");
+	fprintf(output_fd, "LAE, LApeak, LAFmax, LAFmin, LAeq\n");
 	output_time = 0;
 }
 
@@ -169,8 +169,9 @@ void output_record(Levels *levels) {
 		output_file_open(output_filename);
 	for (unsigned i = 0; i < levels->segment_number; ++i) {
 		fprintf(output_fd, "%5.1f, %5.1f, %5.1f, %5.1f, %5.1f\n",
-			levels->LAFmax_db[i], levels->LAFmin_db[i], levels->LApeak_db[i],
-				levels->LAE_db[i], levels->LAeq_db[i]);
+			levels->LAE_db[i], levels->LApeak_db[i],
+				levels->LAFmax_db[i], levels->LAFmin_db[i],
+				levels->LAeq_db[i]);
 
 	}
 	output_time += config_struct->record_period;
