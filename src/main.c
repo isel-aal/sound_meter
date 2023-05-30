@@ -28,6 +28,7 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "filter.h"
 #include "config.h"
 #include "in_out.h"
+#include "audit.h"
 
 static void help(char *prog_name) {
 	printf("Usage: %s [options] <source file_name>\n"
@@ -109,7 +110,7 @@ int main (int argc, char *argv[]) {
 			break;
 		case 'g':
 			option_file_config = optarg;
-			break;	
+			break;
 		case 'r': {
 			option_sample_rate = optarg;
 			break;
@@ -153,7 +154,7 @@ int main (int argc, char *argv[]) {
 		config_filename = strdup(CONFIG_CONFIG_FILENAME);
 
 	if (config_filename[0] != '/') {
-		char *config_path = getenv("SOUND_METER_PATH_CONFIG");
+		char *config_path = getenv("SOUND_METER_PATH");
 		if (config_path != NULL) {
 			char *filepath = malloc(strlen(config_path) + strlen(config_filename) + 1);
 			if (filepath == NULL) {
@@ -173,7 +174,7 @@ int main (int argc, char *argv[]) {
 	config_struct = config_load(config_filename);
 	if (config_struct == NULL)
 		exit(EXIT_FAILURE);
-	
+
 	free(config_filename);
 
 	//	As opções de linha de comando prevalecem sobre o ficheiro
@@ -202,7 +203,7 @@ int main (int argc, char *argv[]) {
 
 	if (option_calibration_time != NULL) {
 		config_struct->calibration_time = atoi(option_calibration_time);
-	}	
+	}
 
 	if (option_output_filename != NULL)
 		output_set_filename(option_output_filename, "");
@@ -211,9 +212,8 @@ int main (int argc, char *argv[]) {
 
 	if (verbose_flag)
 		printf("Program arguments:\n"
-			"\tFile config: %s\n"
 			"\tInput device: %s\n"
-			"\tInput file name: %s\n"	
+			"\tInput file name: %s\n"
 			"\tOutput file name: %s\n"
 			"\tOutput directory: %s\n"
 			"\tIdentification: %s\n"
@@ -225,7 +225,6 @@ int main (int argc, char *argv[]) {
 			"\tRecord period: %d segments\n"
 			"\tFile period: %d segments\n"
 			"\tRun duration: %d seconds\n\n",
-			config_filename,
 			config_struct->input_device,
 			option_input_filename,
 			output_get_filename(),
@@ -242,7 +241,7 @@ int main (int argc, char *argv[]) {
 
 	//	------------------------------------------------------------------------
 
-	int continous = option_input_filename == NULL && option_input_filename == NULL;
+	int continous = option_input_filename == NULL;
 	output_init(continous);
 
 	int result = input_device_open(option_input_filename, config_struct->input_device, config_struct);
@@ -252,7 +251,10 @@ int main (int argc, char *argv[]) {
 	int samples_per_segment = config_struct->segment_duration * config_struct->sample_rate;
 	int blocks_per_segment = samples_per_segment / config_struct->block_size;
 	int last_block_size = samples_per_segment - blocks_per_segment * config_struct->block_size;
-	blocks_per_segment += last_block_size != 0;
+	if (last_block_size != 0)
+		blocks_per_segment += 1;
+	else
+		last_block_size = config_struct->block_size;
 
 	if (verbose_flag) {
 		printf("\tBlocks per segment: %d\n", blocks_per_segment);
@@ -261,8 +263,8 @@ int main (int argc, char *argv[]) {
 	Block *block = block_create(blocks_per_segment, config_struct->block_size, last_block_size);
 
 	Timeweight *twfilter = timeweight_create();
-	Afilter *afilter = afilter_create(afilter_get_coef_a(config_struct->sample_rate),
-									afilter_get_coef_b(config_struct->sample_rate), 6);
+	Afilter *afilter = aweighting_create(aweighting_get_coef_a(config_struct->sample_rate),
+									aweighting_get_coef_b(config_struct->sample_rate), 6);
 
 	unsigned seconds = 0;	// Time elapsed based in segment duration
 
@@ -286,9 +288,9 @@ int main (int argc, char *argv[]) {
 
 			if (seconds >= (calibration_amount - config_struct->calibration_time)) {
 				block_sample_to_float(block);
-				afilter_filtering(block, afilter);
+				aweighting_filtering(block->sample_a, block->sample_b, block->count, afilter);
 				process_block_square(block);
-				timeweight_filtering(block, twfilter);
+				timeweight_filtering(block->sample_c, block->sample_d, block->count, twfilter);
 				calibrator_block(block, cal);
 			}
 
@@ -306,6 +308,9 @@ int main (int argc, char *argv[]) {
 	//--------------------------------------------------------------------------
 
 	printf("\nStarting sound level measuring...\n");
+
+	audit_open();
+
 #if 0
 	//-----Connect to Python Server----
 	Client_Struct *cli = initClient();
@@ -324,14 +329,16 @@ int main (int argc, char *argv[]) {
 			break;
 		block->count = block_size_read;
 		block_sample_to_float(block);
-		afilter_filtering(block, afilter);
+		aweighting_filtering(block->sample_a, block->sample_b, block->count, afilter);
 		process_block_square(block);
 		process_block_lapeak(block, levels);
-		timeweight_filtering(block, twfilter);
+		timeweight_filtering(block->sample_c, block->sample_d, block->count, twfilter);
 		process_block(block, levels);
+		audit_block(block);
 
 		if (++block->block_number == blocks_per_segment) {
 			process_segment(levels, calibration_delta);
+			audit_segment(levels);
 			levels->block_number = 0;
 			block->block_number = 0;
 			seconds += config_struct->segment_duration;
@@ -346,12 +353,14 @@ int main (int argc, char *argv[]) {
 	output_record(levels);
 	output_file_close();
 
+	audit_close();
+
 	printf("Total time: %d\n", seconds);
 	input_device_close();
 	block_destroy(block);
 	levels_destroy(levels);
 	timeweight_destroy(twfilter);
-	afilter_destroy(afilter);
+	aweighting_destroy(afilter);
 	lae_average_destroy();
 	config_destroy(config_struct);
 }

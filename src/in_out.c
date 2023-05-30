@@ -185,13 +185,19 @@ void output_record(Levels *levels) {
 	}
 }
 
+static const char *strip_filename(const char *filename) {
+	const char *ptr = strrchr(filename, '/');
+	return ptr != NULL ? ptr + 1 : filename;
+}
+
 void output_set_filename(const char *filename, const char *extension) {
-	output_filename = malloc(strlen(filename) + strlen(extension) + 1);
+	const char *name = strip_filename(filename);
+	output_filename = malloc(strlen(name) + strlen(extension) + 1);
 	if (output_filename == NULL) {
 		fprintf(stderr, "Out of memory\n");
 		exit (EXIT_FAILURE);
 	}
-	strcpy(output_filename, filename);
+	strcpy(output_filename, name);
 	strcat(output_filename, extension);
 }
 

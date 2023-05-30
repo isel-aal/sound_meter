@@ -1,4 +1,4 @@
-/*	
+/*
 Copyright 2022 Guilherme Albano, David Meneses e Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,20 +26,21 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #define DECIBEL_TO_LINEAR(dBSPL)		(CONFIG_PRESSURE_REFERENCE * pow(10, dBSPL / 20.0f))
 
 Block *block_create(unsigned blocks_per_segment, unsigned block_size, unsigned last_block_size) {
-	Block *block = malloc(sizeof *block);
+	//	Dimensão do array de amostras originais
+	size_t array_sample_int16_size = block_size * sizeof ((Block*)0)->sample_int16[0];
+	//	Dimensão do array de amostras em formato float
+	size_t array_sample_size = block_size * sizeof ((Block*)0)->sample_a[0];
+	Block *block = malloc(sizeof *block
+							+ array_sample_int16_size
+							+ array_sample_size * 4);
 	if (block == NULL)
 		return NULL;
-	block->sample_int16 = malloc(block_size * sizeof block->sample_int16[0]);
-	if (block->sample_int16 == NULL) {
-		free(block);
-		return NULL;
-	}
-	block->sample_float = malloc(block_size * sizeof block->sample_float[0]);
-	if (block->sample_float == NULL) {
-		free(block);
-		free(block->sample_int16);
-		return NULL;
-	}
+	block->sample_int16 = (int16_t*)((char *)block + sizeof *block);
+	block->sample_a = (float*)((char *)block->sample_int16 +array_sample_int16_size);
+	block->sample_b = (float*)((char *)block->sample_a + array_sample_size);
+	block->sample_c = (float*)((char *)block->sample_b + array_sample_size);
+	block->sample_d = (float*)((char *)block->sample_c + array_sample_size);
+
 	block->blocks_per_segment = blocks_per_segment;
 	block->block_size = block_size;
 	block->last_block_size = last_block_size;
@@ -49,14 +50,13 @@ Block *block_create(unsigned blocks_per_segment, unsigned block_size, unsigned l
 }
 
 void block_destroy(Block *block) {
-	free(block->sample_int16);
-	free(block->sample_float);
 	free(block);
 }
 
 void block_sample_to_float(Block *block) {
 	for (unsigned i = 0; i < block->count; i++)
-		block->sample_float[i] = block->sample_int16[i];
+		//	Converte para float e normaliza no intervalo +1 ... -1
+		block->sample_a[i] = block->sample_int16[i] / CONFIG_SAMPLE_NORM;
 }
 
 unsigned block_next_size(Block *block) {
@@ -68,20 +68,19 @@ unsigned block_next_size(Block *block) {
 
 //=============================================================================
 
-static Ring_float *laeq_ring;
 static double laeq_accumulator;
+static size_t laeq_counter;
 
 /**
  * lae_average_create:
  * Inicializar o cálculo de LAEq
  */
 void lae_average_create(unsigned laeq_time) {
-	laeq_ring = ring_float_new(laeq_time);
 	laeq_accumulator = 0;
+	laeq_counter = 0;
 }
 
 void lae_average_destroy() {
-	ring_float_destroy(laeq_ring);
 }
 
 /**
@@ -93,11 +92,9 @@ void lae_average_destroy() {
  * Returns: Valor LAEq
  */
 float lae_average(float lae) {
-	if (ring_float_full(laeq_ring))
-		laeq_accumulator -= ring_float_read(laeq_ring);
 	laeq_accumulator += lae;
-	ring_float_write(laeq_ring, lae);
-	return laeq_accumulator / ring_float_counter(laeq_ring);
+	laeq_counter++;
+	return laeq_accumulator / laeq_counter;
 }
 
 //=============================================================================
@@ -123,7 +120,7 @@ void calibrator_destroy(Calibrator *cal) {
 void calibrator_block(Block *block, Calibrator *cal) {
 	float sum = 0;
 	for (int i = 0; i < block->count; i++)
-		sum += block->sample_float[i] + CONFIG_MARGIN;
+		sum += block->sample_a[i] + CONFIG_MARGIN;
 	float prms = sqrt(sum / block->count);	// calculo do rms por bloco linear
 	cal->prms[cal->block_number] = prms;
 	cal->block_number = cal->block_number + 1;
@@ -141,7 +138,7 @@ static float calibrate(float calibration_delta, float linear) {
 }
 
 #if 0
-static float decalibrate(float calibration_delta, float calibrated) {	
+static float decalibrate(float calibration_delta, float calibrated) {
 	return (calibrated + calibration_delta - CONFIG_CALIBRATOR_REFERENCE);
 }
 #endif
@@ -162,7 +159,7 @@ Levels *levels_create(unsigned blocks_per_segment) {
 	levels->LApeak = buffer;
 	levels->LAFmax = buffer += blocks_per_segment;
 	levels->LAFmin = buffer += blocks_per_segment;
-	levels->LAE = buffer += blocks_per_segment;
+	levels->LAEsum = buffer += blocks_per_segment;
 	levels->block_number = 0;
 
 	size_t segment_data_size = config_struct->record_period * sizeof *levels->LAeq_db;
@@ -190,43 +187,43 @@ void levels_destroy(Levels *levels) {
 
 void process_block_square(Block *block) {
 	for (unsigned i = 0; i < block->count; i++)
-		block->sample_float[i] = pow(block->sample_float[i], 2);
+		block->sample_c[i] = pow(block->sample_b[i], 2);
 }
 
 void process_block_lapeak(Block *block, Levels *levels) {
-	float peak = block->sample_float[0] + CONFIG_MARGIN;
+	float peak = block->sample_c[0] + CONFIG_MARGIN;
 	for (unsigned i = 1; i < block->count; i++) {
-		if (peak < block->sample_float[i] + CONFIG_MARGIN)
-			peak = block->sample_float[i] + CONFIG_MARGIN;
+		if (peak < block->sample_c[i] + CONFIG_MARGIN)
+			peak = block->sample_c[i] + CONFIG_MARGIN;
 	}
-	levels->LApeak[levels->block_number] = sqrt(peak);;
+	levels->LApeak[levels->block_number] = sqrt(peak);
 }
 
 void process_block(Block *block, Levels *levels) {
-	float sum = block->sample_float[0] + CONFIG_MARGIN;
-	float max = block->sample_float[0] + CONFIG_MARGIN;
-	float min = block->sample_float[0] + CONFIG_MARGIN;
+	float sum = block->sample_d[0] + CONFIG_MARGIN;
+	float max = block->sample_d[0] + CONFIG_MARGIN;
+	float min = block->sample_d[0] + CONFIG_MARGIN;
 	for (unsigned i = 1; i < block->count; i++) {
-		if (max < block->sample_float[i] + CONFIG_MARGIN)
-			max = block->sample_float[i] + CONFIG_MARGIN;
-		if (min > block->sample_float[i] + CONFIG_MARGIN)
-			min = block->sample_float[i] + CONFIG_MARGIN;
-		sum += block->sample_float[i] + CONFIG_MARGIN;
+		if (max < block->sample_d[i] + CONFIG_MARGIN)
+			max = block->sample_d[i] + CONFIG_MARGIN;
+		if (min > block->sample_d[i] + CONFIG_MARGIN)
+			min = block->sample_d[i] + CONFIG_MARGIN;
+		sum += block->sample_d[i] + CONFIG_MARGIN;
 	}
 	levels->LAFmax[levels->block_number] = sqrt(max);
 	levels->LAFmin[levels->block_number] = sqrt(min);
-	levels->LAE[levels->block_number] = sqrt(sum / block->count);
+	levels->LAEsum[levels->block_number] = sum;
 	levels->block_number++;
 }
 
 void process_segment(Levels *levels, float calibration_delta) {
-	float lae = levels->LAE[0];
-	float max = levels->LAFmin[0];
-	float min = levels->LAFmax[0];
+	float lae = levels->LAEsum[0];
+	float max = levels->LAFmax[0];
+	float min = levels->LAFmin[0];
 	float peak = levels->LApeak[0];
 
 	for (unsigned i = 1; i < levels->block_number; i++) {
-		lae = lae + levels->LAE[i];
+		lae = lae + levels->LAEsum[i];
 		if (min > levels->LAFmin[i])
 			min = levels->LAFmin[i];
 		if (max < levels->LAFmax[i])
@@ -234,7 +231,8 @@ void process_segment(Levels *levels, float calibration_delta) {
 		if (peak < levels->LApeak[i])
 			peak = levels->LApeak[i];
 	}
-	lae = lae / levels->block_number;
+	lae = lae / (CONFIG_SEGMENT_DURATION * CONFIG_SAMPLE_RATE);
+	lae = sqrt(lae);
 	float laeq = lae_average(lae);
 	levels->LAeq_db[levels->segment_number] = calibrate(calibration_delta, laeq);
 	levels->LAFmax_db[levels->segment_number] = calibrate(calibration_delta, max);

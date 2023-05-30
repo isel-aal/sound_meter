@@ -94,32 +94,105 @@ O periodo de criação do ficheiro de saída é definido no ficheiro de configur
 
 ## Instalação
 ---
-### Geração da aplicação
+### Instalação no Raspberrypi
+Utilizando a placa de som **Respeaker**
+À data atual 11-1-2023 o *device driver* da placa Respeaker só funciona até à versão 5.10 do Linux. Deve-se instalar a versão lagacy do Raspi OS.
+Para instalar o *device driver*, seguir estas instruções: https://github.com/respeaker/seeed-voicecard
+ou estas: https://wiki.seeedstudio.com/ReSpeaker_4-Mic_Linear_Array_Kit_for_Raspberry_Pi
 
-Esta aplicação utiliza a biblioteca ``libwave``. A variável de ambiente ``PKG_CONFIG_PATH`` deve ser definida com o caminho para a diretoria onde a ``libwave`` tiver sido instalada.
-O repositório do projeto tem a seguinte estrutura:
-```
-sound_meter
-   |--- build
-   |--- data
-   |--- sound_samples
-   |--- src
-   |--- tests
-```
-Para gerar o programa executável deve-se invocar ``make`` na diretoria raíz. O executável é depositado na diretoria build com o nome ``sound_meter``.
+### Instalação da aplicação sound_meter
 
+Primeiro instalar a biblioteca ***libwave***.
+```
+$ sudo apt install libglib2.0-dev
+$ git clone https://github.com/isel-aal/libwave.git
+$ cd libwave
+$ make
+$ sudo ./install.sh
+```
+A variável de ambiente ``PKG_CONFIG_PATH`` deve ser definida com o caminho para a diretoria onde a ``libwave`` tiver sido instalada. O *script* ``install.sh`` instala em ``/usr/local/lib``.
+```
+$ export PKG_CONFIG_PATH=/usr/local/lib
+```
+Gerar a aplicação ***souns_meter***
+```
+$ sudo apt install libasound-dev libjansson-dev
+$ git clone https://github.com/isel-aal/sound_meter.git
+$ cd sound_meter
+$ make
+```
+Definir o caminho para a biblioteca *libwave*.
+```
+$ sudo ldconfig /usr/local/lib
+```
 ### Configuração do servidor Web
-
-Servidor Web instalado: NGINX.
+Instalar:
+```
+$ sudo apt nginx
+```
 Ficheiro de configuração: ``/etc/nginx/sites-available/default``.
-Para se ter acesso a todos os ficheiros de uma diretoria acrescentar nesse ficheiro:
+Para se ter acesso através do Browser, aos ficheiros produzidos, acrescentar nesse ficheiro:
 ```
 location /data/ {
-	root /home/pi/work/sound/sound_meter/;
+	root /home/pi/sound_meter/;
 	autoindex on;
 }
 ```
-Neste caso o conteúdo da diretoria ``/home/pi/work/sound/sound_meter/data`` será mostrado e o seu conteúdo pode ser descarregado. Se a máquina tiver o endereço ``raspberrypi.local`` o URL a especificar no Browser será ``raspberrypi.local/data``.
+O caminho para a diretoria onde são depositados deve ser ajustados conforme a configuração da aplicação sound_meter.
+
+Neste caso o conteúdo da diretoria ``/home/pi/sound_meter/data`` será mostrado e o seu conteúdo pode ser descarregado. Se a máquina tiver o endereço ``raspberrypi.local`` o URL a especificar no Browser será ``raspberrypi.local/data/``.
+
+### Configuração wi-fi 
+A interface wireless é configurada no ficheiro ``$ cat /etc/wpa_supplicant/wpa_supplicant.conf``.
+```
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+country=PT
+
+network={
+        ssid="AA-AS/TSS4-EI"
+        psk="xxxxxxxxx"
+}
+
+network={
+        ssid="eduroam"
+        scan_ssid=1
+        key_mgmt=WPA-EAP
+        eap=PEAP
+        phase1="peaplabel=0"
+        phase2="auth=MSCHAPV2"
+        identity="ezeq@cc.isel.ipl.pt"
+        password="xxxxxxxxx"
+}
+```
+O exemplo contém a configuração para duas redes. A primeira, uma rede doméstica com segurança simples. A segunda, a rede **eduroam**, com auteticação de utilizador.
+
+##### Situação particular relativa à rede **eduroam**.
+
+À data desta instalação, 16 de janeiro 2023, a ligação à *eduroam* apresentava erro.
+Para contornar esta dificuldade foram seguidas as instruções descritas na conversa:
+``https://forums.raspberrypi.com/viewtopic.php?t=253567``
+
+### Acesso remoto
+
+Para acesso ao sistema como servidor, é conveniente ter uma referência fixa. O endereço IP não é solução porque muda ao longo do tempo. A solução normal é a utilização de DNS.
+
+A solução adotada foi a utilização de Dynamic DNS através do sítio NO-IP. A utilização deste sítio engloba a criação de uma conta em www.noip.com e a utilização de uma aplicação cliente para atualização do endereço IP  (Dynamic Update Cliente - DUC).
+Por omissão, a aplicação cliente atualiza o servidor DNS com o endereço público do *router*. Isso permite a acesso de qualquer ponto da Internet mas implica configurar o router com *port forwarding*. Na rede local do ISEL está fora de questão realizar *port forwarding*.
+A aplicação DUC permite definir o endereço a comunicar ao servidor DNS. Configurando com um endereço local é possível realizar acessos na intranet do ISEL. 
+
+Para instalar a aplicação DUC seguir as instruções desta página: https://my.noip.com/dynamic-dns/duc. 
+
+A opção -i permite definir o endereço IP associado ao *hostname*.
+Na página https://my.noip.com/dynamic-dns foi definido o *hostname* ``soundmeter1.ddns.net``.
+
+A aplicação DUC é executada no *script* ``no-ip-update.sh`` que obtêm o endereço IP corrente com o utilitário ``ipaddress``.
+```
+#!/bin/bash
+
+address=`ipaddress wlan0`
+noip2 -c ~/.no-ip/no-ip2.conf -i $address
+```
 
 ### Configuração *coredump*
 

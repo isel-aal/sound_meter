@@ -1,4 +1,4 @@
-/*	
+/*
 Copyright 2022 Guilherme Albano, David Meneses e Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,8 +36,16 @@ typedef struct {
 	unsigned block_number;		//	Número do bloco no segmento
 	unsigned count;				//	Porção de dados úteis no bloco
 	int16_t *sample_int16;		//	Amostras em formato inteiro com sinal 16 bits
-	float *sample_float;		//	Amostras em formato float
+	float *sample_a;			//	Amostras em formato float à entrada
+	float *sample_b;			//	Amostras em formato float depois do filtro A
+	float *sample_c;			//	Amostras em formato float depois do quadrado
+	float *sample_d;			//	Amostras em formato float depois do filtro tempo
 } Block;
+
+typedef struct {
+	size_t len;
+	float *samples;
+} Segment;
 
 Block *block_create(unsigned bps, unsigned size, unsigned size_last);
 void block_destroy(Block *);
@@ -59,8 +67,8 @@ typedef struct {
 	float *LApeak;				//	Valores calculados para cada bloco no segmento corrente
 	float *LAFmax;
 	float *LAFmin;
-	float *LAE;
-	
+	float *LAEsum;
+
 	unsigned segment_number;
 	float *LAeq_db;	//	Valores calculados para cada segmento, num periodo de registo
 	float *LApeak_db;

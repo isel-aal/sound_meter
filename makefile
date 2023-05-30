@@ -10,7 +10,7 @@ SOURCES = \
 	src/process.c \
 	src/filter.c \
 	src/in_out.c \
-	src/ring.c
+	src/audit.c
 
 OBJECTS = $(SOURCES:%.c=build/%.o)
 

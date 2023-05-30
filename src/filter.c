@@ -1,5 +1,5 @@
 
-/*	
+/*
 Copyright 2022 Guilherme Albano, David Meneses e Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +21,9 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include <assert.h>
 #include "filter.h"
 
-#define alfa (1.813894426370144 * pow(10, -4))
+//#define alfa (1.813894426370144 * pow(10, -4))
 
-//#define alfa 0.000167
+#define alfa 0.00167
 
 //Inits time weight filter
 Timeweight *timeweight_create(){
@@ -36,11 +36,11 @@ void timeweight_destroy(Timeweight *tw) {
 	free(tw);
 }
 
-void timeweight_filtering(Block *block, Timeweight *tw) {
+void timeweight_filtering(const float *x, float *y, size_t size, Timeweight *tw) {
 	// y[n] = (1−α)x[n]+αy[n−1]
-	for (unsigned i = 0; i < block->count; i++) {
-		block->sample_float[i] = ((1 - alfa) * block->sample_float[i]) + (alfa * tw->previous);
-		tw->previous = block->sample_float[i];
+	for (unsigned i = 0; i < size; i++) {
+		y[i] = ((1 - alfa) * x[i]) + (alfa * tw->previous);
+		tw->previous = y[i];
 	}
 }
 
@@ -55,7 +55,7 @@ static void shift_right(float *u, int size, float x) {	// insere o valor da posi
 	u[0] = x;
 }
 
-Afilter *afilter_create(float *coef_a, float *coef_b, int N) {
+Afilter *aweighting_create(float *coef_a, float *coef_b, int N) {
 	Afilter *af = malloc(sizeof *af);
 	af->coef_a = coef_a;
 	af->coef_b = coef_b;
@@ -64,17 +64,17 @@ Afilter *afilter_create(float *coef_a, float *coef_b, int N) {
 	return af;
 }
 
-void afilter_destroy(Afilter *af) {
+void aweighting_destroy(Afilter *af) {
 	free(af->u);
 	free(af);
 }
 
-void afilter_filtering(Block *block, Afilter *af) {
-	float *y = calloc(block->count, sizeof(float));
-
-	for (int n = 0; n < block->count; n++) {
+void aweighting_filtering(const float *x, float *y, size_t size, Afilter *af) {
+	assert(x != y);
+	memset(y, 0, size * sizeof *y);
+	for (int n = 0; n < size; n++) {
 		// shifta para o lado e u[n] = x[n] => u[0] = x[n]
-		shift_right(af->u, af->N, block->sample_float[n] / CONFIG_SAMPLE_NORM);	//	Normalização +1 ... -1
+		shift_right(af->u, af->N, x[n]);
 
 		for (int i = 1; i <= af->N; i++) {
 			// u(n) = u(n) + (-1)a(i) * u(n - i)
@@ -85,8 +85,6 @@ void afilter_filtering(Block *block, Afilter *af) {
 			y[n] = y[n] + (af->coef_b[i] * af->u[i]);
 		}
 	}
-	memcpy(block->sample_float, y, block->count * sizeof *block->sample_float);
-	free(y);
 }
 
 static float coef_a[] = {
@@ -107,12 +105,12 @@ static float coef_b[] = {
 	-0.282740857326553,
 	-0.152810756202003};
 
-float *afilter_get_coef_a(int sample_rate) {
+float *aweighting_get_coef_a(int sample_rate) {
 	assert(sample_rate == 48000);
 	return coef_a;
 }
 
-float *afilter_get_coef_b(int sample_rate) {
+float *aweighting_get_coef_b(int sample_rate) {
 	assert(sample_rate == 48000);
 	return coef_b;
 }

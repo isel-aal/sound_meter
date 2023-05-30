@@ -1,5 +1,5 @@
 
-/*	
+/*
 Copyright 2022 Guilherme Albano, David Meneses e Laboratório de Audio e Acústica do ISEL
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,8 @@ typedef struct {
 
 Timeweight *timeweight_create();
 void timeweight_destroy(Timeweight *);
-void timeweight_filtering(Block *buff, Timeweight *tw);
+//void timeweight_filtering(Block *buff, Timeweight *tw);
+void timeweight_filtering(const float *x, float *y, size_t size, Timeweight *tw);
 
 typedef struct {
 	float *u;		// variável de estado
@@ -42,11 +43,11 @@ typedef struct {
 	int N;			// ordem do filtro
 } Afilter;
 
-Afilter *afilter_create(float *coef_a, float *coef_b, int N);
-void afilter_destroy(Afilter *);
-void afilter_filtering(Block *buff, Afilter *af);
+Afilter *aweighting_create(float *coef_a, float *coef_b, int N);
+void aweighting_destroy(Afilter *);
+void aweighting_filtering(const float *x, float *y, size_t size, Afilter *af);
 
-float *afilter_get_coef_a(int);
-float *afilter_get_coef_b(int);
+float *aweighting_get_coef_a(int);
+float *aweighting_get_coef_b(int);
 
 #endif
