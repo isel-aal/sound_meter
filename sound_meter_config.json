@@ -1,0 +1,13 @@
+{
+        "identification": "XXXX_NNNN",
+        "input_device": "default",
+        "output_path": "data/",
+        "output_format": ".csv",
+        "sample_rate": 48000,
+        "segment_duration": 1,
+        "block_size": 1024,
+        "record_period": 60,
+        "file_period": 600,
+        "calibration_time": 60,
+        "calibration_reference": 94
+}

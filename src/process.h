@@ -28,62 +28,43 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include <stdio.h>
 #include <stdint.h>
 #include "config.h"
+#include "sbuffer.h"
+
+static inline float linear_to_decibel(float linear)
+{
+	return 20.0f * log10(linear / CONFIG_PRESSURE_REFERENCE);
+}
+
+static inline float decibel_to_linear(float decibel)
+{
+	return CONFIG_PRESSURE_REFERENCE * pow(10, decibel / 20.0f);
+}
+
+void samples_int16_to_float(int16_t *samples_int16, float *samples_float, unsigned length);
+void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsigned length);
 
 typedef struct {
-	unsigned blocks_per_segment;
-	unsigned block_size;
-	unsigned last_block_size;
-	unsigned block_number;		//	Número do bloco no segmento
-	unsigned count;				//	Porção de dados úteis no bloco
-	int16_t *sample_int16;		//	Amostras em formato inteiro com sinal 16 bits
-	float *sample_a;			//	Amostras em formato float à entrada
-	float *sample_b;			//	Amostras em formato float depois do filtro A
-	float *sample_c;			//	Amostras em formato float depois do quadrado
-	float *sample_d;			//	Amostras em formato float depois do filtro tempo
-} Block;
+	unsigned segment_number;
+	float *LAeq;	//	Valores calculados para cada segmento, num periodo de registo
+	float *LApeak;
+	float *LAFmax;
+	float *LAFmin;
+	float *LAE;
+} Levels;
 
-typedef struct {
-	size_t len;
-	float *samples;
-} Segment;
+Levels *levels_create();
+void levels_destroy(Levels *);
 
-Block *block_create(unsigned bps, unsigned size, unsigned size_last);
-void block_destroy(Block *);
-void block_sample_to_float(Block *);
-unsigned block_next_size(Block *);
+void process_block_square(float *input, float *output, unsigned length);
+void process_segment_lapeak(Levels *levels, Sbuffer *ring, float calibration_delta);
+void process_segment(Levels *levels, Sbuffer *ring, float calibration_delta);
+
+void lae_average_create(unsigned laeq_time);					//	Para cálculo de LAeq
+void lae_average_destroy();
 
 typedef struct {
 	float *prms;
 	unsigned block_number;
 } Calibrator;
 
-Calibrator *calibrator_create(unsigned blocks_per_segment, unsigned calibration_time);
-void calibrator_destroy(Calibrator *);
-void calibrator_block(Block *buff, Calibrator *cal);
-float calibrator_calculate(Calibrator *cal);
-
-typedef struct {
-	unsigned block_number;		//	Número do bloco no segmento corrente
-	float *LApeak;				//	Valores calculados para cada bloco no segmento corrente
-	float *LAFmax;
-	float *LAFmin;
-	float *LAEsum;
-
-	unsigned segment_number;
-	float *LAeq_db;	//	Valores calculados para cada segmento, num periodo de registo
-	float *LApeak_db;
-	float *LAFmax_db;
-	float *LAFmin_db;
-	float *LAE_db;
-} Levels;
-
-Levels *levels_create(unsigned blocks_per_segment);
-void levels_destroy(Levels *);
-void process_block_square(Block *buff);							// quadrado de todas as amostras
-void process_block_lapeak(Block *buff, Levels *levels);			// cálculo do lapeak
-void process_block(Block *buff, Levels *);					// cálculo dos níveis lae,lmax,lmin
-void process_segment(Levels *levels, float calibration_delta);	// cálculo dos níveis para 1 segmento
-
-void lae_average_create(unsigned laeq_time);					//	Para cálculo de LAeq
-void lae_average_destroy();
 #endif

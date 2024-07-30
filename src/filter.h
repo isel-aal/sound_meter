@@ -34,18 +34,23 @@ typedef struct {
 Timeweight *timeweight_create();
 void timeweight_destroy(Timeweight *);
 //void timeweight_filtering(Block *buff, Timeweight *tw);
-void timeweight_filtering(const float *x, float *y, size_t size, Timeweight *tw);
+//void timeweight_filtering(const float *x, float *y, size_t size, Timeweight *tw);
+
+void timeweight_filtering(Timeweight *tw, float *input, float *output, unsigned length);
 
 typedef struct {
-	float *u;		// variável de estado
-	float *coef_a;	// coeficientes do filtro
-	float *coef_b;	// coeficientes do filtro
-	int N;			// ordem do filtro
+	float *u;				// variável de estado
+//	const float *coef_a;	// coeficientes do filtro
+//	const float *coef_b;	// coeficientes do filtro
+	int N;					// ordem do filtro
+	const float *coefs;		// coeficientes do filtro; formato Joao Casaleiro
 } Afilter;
 
-Afilter *aweighting_create(float *coef_a, float *coef_b, int N);
+Afilter *aweighting_create(int N);
 void aweighting_destroy(Afilter *);
-void aweighting_filtering(const float *x, float *y, size_t size, Afilter *af);
+// void aweighting_filtering(const float *x, float *y, size_t size, Afilter *af);
+
+void aweighting_filtering(Afilter *af, float *input, float *output, unsigned length);
 
 float *aweighting_get_coef_a(int);
 float *aweighting_get_coef_b(int);

@@ -21,96 +21,96 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include <assert.h>
 #include "filter.h"
 
+#include "FilterCoefs_48000.h"
 //#define alfa (1.813894426370144 * pow(10, -4))
 
-#define alfa 0.00167
+//#define alfa 0.00167
+#define alfa 0.0001666527785
 
 //Inits time weight filter
-Timeweight *timeweight_create(){
+Timeweight *timeweight_create()
+{
 	Timeweight *tw = malloc(sizeof *tw);
 	tw->previous = 0;
 	return tw;
 }
 
-void timeweight_destroy(Timeweight *tw) {
+void timeweight_destroy(Timeweight *tw)
+{
 	free(tw);
 }
 
-void timeweight_filtering(const float *x, float *y, size_t size, Timeweight *tw) {
+void timeweight_filtering(Timeweight *tw, float *x, float *y, unsigned n)
+{
 	// y[n] = (1−α)x[n]+αy[n−1]
-	for (unsigned i = 0; i < size; i++) {
-		y[i] = ((1 - alfa) * x[i]) + (alfa * tw->previous);
-		tw->previous = y[i];
-	}
+	for (unsigned i = 0; i < n; i++)
+//		tw->previous = y[i] = ((1 - alfa) * x[i]) + (alfa * tw->previous);
+		// y[n] = α * x[n] + (1 - α) * y[n−1]
+		tw->previous = y[i] = ((alfa) * x[i]) + ((1 - alfa) * tw->previous);
 }
 
-/*
- u = [1, 2, 3, 4, 5]
- shiftright(u, 5, 50)
- u = [50, 1, 2, 3, 4]
- */
-
-static void shift_right(float *u, int size, float x) {	// insere o valor da posição 0 e shifta tudo pra direita
-	memmove(&u[1], &u[0], size * sizeof(float));
-	u[0] = x;
+static void shift_right(float u[], int size)
+{
+	memmove(&u[1], &u[0], (size - 1) * sizeof u[0]);
+	u[0] = 0;
 }
 
-Afilter *aweighting_create(float *coef_a, float *coef_b, int N) {
+Afilter *aweighting_create(int N)
+{
 	Afilter *af = malloc(sizeof *af);
-	af->coef_a = coef_a;
-	af->coef_b = coef_b;
-	af->u = calloc(N + 1, sizeof(float));
+	af->coefs = A_WEIGHTED_taps;
+	af->u = calloc(3 * N, sizeof(float));
 	af->N = N;
 	return af;
 }
 
-void aweighting_destroy(Afilter *af) {
+void aweighting_destroy(Afilter *af)
+{
 	free(af->u);
 	free(af);
 }
 
-void aweighting_filtering(const float *x, float *y, size_t size, Afilter *af) {
-	assert(x != y);
-	memset(y, 0, size * sizeof *y);
+/*------------------------------------------------------------------------------
+		<-- mais recente               mais antigo ->
+
+	      0       1       2       3       4       5
+	   ------- ------- ------- ------- ------- -------
+	u |       |       |       |       |       |       |
+	   ------- ------- ------- ------- ------- -------
+	   u1(n)   u1(n-1) u1(n-2) u2(n)   u2(n-1) u2(n-2)
+
+
+	        0   1   2   3   4   5   6   7   8   9   10  11
+	       --- --- --- --- --- --- --- --- --- --- --- ---
+	coefs |   |   |   |   |   |   |   |   |   |   |   |   |
+	       --- --- --- --- --- --- --- --- --- --- --- ---
+	       b10 b11 b12 a10 a11 a12 b20 b21 b22 a20 a21 a22
+*/
+
+static float biquad(float x, float *u, const float *a, const float *b)
+{
+	// ui(n) = xi(n) + ai(0) * ui(n-1) + ai(1) * ui(n-2)
+	u[0] = x - a[1] * u[1] - a[2] * u[2];
+	// yi(n) = bi(0) * ui(n) + bi(1) * ui(n-1) + bi[2] * ui(n-2)
+	return b[0] * u[0] + b[1] * u[1] + b[2] * u[2];
+}
+
+static float cascade_biquad(float x, float *u, const float *coefs, int N)
+{
+	float y = x;
+	for (int i = 0; i < N; i++)
+		y = biquad(y, u + i * 3, coefs + 3 + i * 6, coefs + i * 6);
+	return y;
+}
+
+void aweighting_filtering(Afilter *af, float x[], float y[], unsigned size)
+{
 	for (int n = 0; n < size; n++) {
-		// shifta para o lado e u[n] = x[n] => u[0] = x[n]
-		shift_right(af->u, af->N, x[n]);
-
-		for (int i = 1; i <= af->N; i++) {
-			// u(n) = u(n) + (-1)a(i) * u(n - i)
-			af->u[0] = af->u[0] + (((-1) * af->coef_a[i]) * af->u[i]);
-		}
-		for (int i = 0; i <= af->N; i++) {
-			// y(n) = y(n) + b(i) * u(n-i)
-			y[n] = y[n] + (af->coef_b[i] * af->u[i]);
-		}
+		shift_right(af->u, af->N);
+		shift_right(af->u + 3, af->N);
+		shift_right(af->u + 6, af->N);
+		float a = cascade_biquad(x[n], af->u, af->coefs, af->N);
+		y[n] = a;
+//		assert(a >= -1.0 && a <= +1.0);
 	}
-}
-
-static float coef_a[] = {
-	1.00000000000000000,
-	-2.12979364760736134,
-	0.42996125885751674,
-	1.62132698199721426,
-	-0.96669962900852902,
-	0.00121015844426781,
-	0.04400300696788968};
-
-static float coef_b[] = {
-	0.169994948147430,
-	0.280415310498794,
-	-1.120574766348363,
-	0.131562559965936,
-	0.974153561246036,
-	-0.282740857326553,
-	-0.152810756202003};
-
-float *aweighting_get_coef_a(int sample_rate) {
-	assert(sample_rate == 48000);
-	return coef_a;
-}
-
-float *aweighting_get_coef_b(int sample_rate) {
-	assert(sample_rate == 48000);
-	return coef_b;
 }

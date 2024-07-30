@@ -10,7 +10,7 @@ SOURCES = \
 	src/process.c \
 	src/filter.c \
 	src/in_out.c \
-	src/audit.c
+	src/sbuffer.c
 
 OBJECTS = $(SOURCES:%.c=build/%.o)
 
@@ -19,8 +19,6 @@ DEPENDENCIES = $(OBJECTS:%.o=%d)
 build/sound_meter: build_dir $(OBJECTS)
 	gcc $(LDFLAGS) $(OBJECTS) $(LIBS) -o build/sound_meter
 
-%.o: %.c
-
 build/src/%.o: src/%.c
 	gcc $(CFLAGS) -c $< -o $@
 
@@ -28,4 +26,4 @@ build_dir:
 	mkdir -p build/src
 
 clean:
-	rm *.o sound_meter
+	rm -rf build/*

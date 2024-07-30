@@ -30,14 +30,24 @@ typedef struct input_device {
 	};
 } Input_device;
 
-int input_device_open(const char *file_name, const char *device_name, Config *);
+int input_device_open(Config *);
 size_t input_device_read(void *buffer, size_t frames);
 void input_device_close();
 
-void output_init(int );
+void output_init(int);
 void output_set_filename(const char *filename, const char *extension);
 char *output_get_filename();
 void output_record(Levels *levels);
 void output_file_close();
+
+
+typedef struct audit {
+	char *id;
+	Wave *wave;
+} Audit;
+
+Audit *audit_create(char *id);
+int audit_append_samples(Audit *audit, float *block, unsigned length);
+void audit_destroy(Audit *audit);
 
  #endif

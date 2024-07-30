@@ -24,13 +24,14 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include <sys/time.h>
 #include <time.h>
 #include <getopt.h>
+
 #include "process.h"
 #include "filter.h"
 #include "config.h"
 #include "in_out.h"
-#include "audit.h"
 
-static void help(char *prog_name) {
+static void help(char *prog_name)
+{
 	printf("Usage: %s [options] <source file_name>\n"
 		"options:\n"
 		"\t--verbose\n"
@@ -44,17 +45,19 @@ static void help(char *prog_name) {
 		"\t-n, --identification <name>\n"
 		"\t-t, --duration <time>\n"
 		"\t-c, --calibrate [<time>]\n"
-		"\t-g, --config <file name>\n",
+		"\t-g, --config <filename>\n",
 		prog_name);
 }
 
-static void about() {
+static void about()
+{
 	printf("Sound meter v" CONFIG_VERSION " (" __DATE__ ")\n"
 		"Based on MoSeMusic project by Guilherme Albano and David Meneses\n"
 		"Ezequiel Conde (ezeq@cc.isel.ipl.pt)\n");
 }
 
-int main (int argc, char *argv[]) {
+int main (int argc, char *argv[])
+{
 	static int verbose_flag = false;
 	static struct option long_options[] = {
 		{"verbose", no_argument, &verbose_flag, 1},
@@ -78,11 +81,11 @@ int main (int argc, char *argv[]) {
 	char *option_device_filename = NULL;
 	char *option_input_filename = CONFIG_INPUT_FILENAME;
 	char *option_output_filename = NULL;
-	char *option_output_extention = NULL;
+	char *option_output_format = NULL;
 	char *option_sample_rate = NULL;
 	char *option_identification = NULL;
 	char *option_calibration_time = NULL;
-	char *option_file_config = NULL;
+	char *option_config_filename = NULL;
 	int run_duration = 0;
 
 	while ((option_char = getopt_long(argc, argv, ":hvi:o:f:r:d:l:t:c:g:",
@@ -106,10 +109,10 @@ int main (int argc, char *argv[]) {
 			option_output_filename = optarg;
 			break;
 		case 'f':
-			option_output_extention = optarg;
+			option_output_format = optarg;
 			break;
 		case 'g':
-			option_file_config = optarg;
+			option_config_filename = optarg;
 			break;
 		case 'r': {
 			option_sample_rate = optarg;
@@ -145,39 +148,57 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	//	Ler as configurações em ficheiro
+	//----------------------------------------------------------------------
+	//	Determinar nome do ficheiro de configuração
 
-	char *config_filename;
-	if (option_file_config != NULL)
-		config_filename = strdup(option_file_config);
-	else
-		config_filename = strdup(CONFIG_CONFIG_FILENAME);
-
-	if (config_filename[0] != '/') {
-		char *config_path = getenv("SOUND_METER_PATH");
-		if (config_path != NULL) {
-			char *filepath = malloc(strlen(config_path) + strlen(config_filename) + 1);
-			if (filepath == NULL) {
-				fprintf(stderr, "Out of memory\n");
-				exit(EXIT_FAILURE);
-			}
-			strcpy(filepath, config_path);
-			strcat(filepath, config_filename);
-			free(config_filename);
-			config_filename = filepath;
-		}
+	const char *config_filename = option_config_filename;
+	if (NULL == config_filename) {
+		config_filename = getenv("SOUND_METER_CONFIG_FILENAME");
+		if (config_filename == NULL)
+			config_filename = CONFIG_CONFIG_FILENAME;
 	}
-
 	if (verbose_flag)
-		printf("Configuration file: %s\n", config_filename);
+		printf("Configuration filename: %s\n", config_filename);
 
-	config_struct = config_load(config_filename);
+	/* Só a partir da versão 2.76 da GLib
+	struct GPathBuf config_pathname;
+	g_path_buf_init(&config_pathname);
+
+	char first_letter = option_config_filename[0];
+	if (first_letter != '/' && first_letter != '.') { // Anexar path
+		const char *path = getenv("SOUND_METER_CONFIG_FILEPATH");
+		if (path == NULL)
+			path = CONFIG_CONFIG_FILEPATH;
+		g_path_buf_push(&config_pathname, path);
+	}
+	g_path_buf_push(&config_pathname, option_config_filename);
+
+	const char *config_filename = g_path_buf_free_to_path(&config_pathname);
+	*/
+	char *config_pathname;
+	char first_letter = config_filename[0];
+	if (first_letter != '/' && first_letter != '.') { // absoluto / relativo
+		const char *path = getenv("SOUND_METER_CONFIG_FILEPATH");
+		if (path == NULL)
+			path = CONFIG_CONFIG_FILEPATH;
+		char *pathname = malloc(strlen(path) + strlen(config_filename) + 1);
+		strcpy(pathname, path);
+		strcat(pathname, config_filename);
+		config_pathname = pathname;
+	}
+	else {
+		config_pathname = strdup(config_filename);
+	}
+	if (verbose_flag)
+		printf("Configuration pathname: %s\n", config_pathname);
+
+	config_struct = config_load(config_pathname);
 	if (config_struct == NULL)
 		exit(EXIT_FAILURE);
 
-	free(config_filename);
+	free(config_pathname);
 
-	//	As opções de linha de comando prevalecem sobre o ficheiro
+	//	As opções de linha de comando prevalecem sobre o ficheiro de configuração
 
 	if (option_device_filename != NULL) {
 		if (config_struct->input_device != NULL)
@@ -185,10 +206,16 @@ int main (int argc, char *argv[]) {
 		config_struct->input_device = strdup(option_device_filename);
 	}
 
-	if (option_output_extention != NULL) {
-		if (config_struct->output_extention != NULL)
-			free(config_struct->output_extention);
-		config_struct->output_extention = strdup(option_output_extention);
+	if (option_input_filename != NULL) {
+		if (config_struct->input_file != NULL)
+			free(config_struct->input_file);
+		config_struct->input_file = strdup(option_input_filename);
+	}
+
+	if (option_output_format != NULL) {
+		if (config_struct->output_format != NULL)
+			free(config_struct->output_format);
+		config_struct->output_format = strdup(option_output_format);
 	}
 
 	if (option_sample_rate != NULL) {
@@ -208,7 +235,9 @@ int main (int argc, char *argv[]) {
 	if (option_output_filename != NULL)
 		output_set_filename(option_output_filename, "");
 	else if (option_input_filename != NULL)
-		output_set_filename(option_input_filename, config_struct->output_extention);
+		output_set_filename(option_input_filename, config_struct->output_format);
+
+	config_struct->segment_size = config_struct->segment_duration * config_struct->sample_rate;
 
 	if (verbose_flag)
 		printf("Program arguments:\n"
@@ -218,99 +247,118 @@ int main (int argc, char *argv[]) {
 			"\tOutput directory: %s\n"
 			"\tIdentification: %s\n"
 			"\tSample Rate: %d\n"
-			"\tSegment duration: %d second\n"
 			"\tBlock size: %d samples\n"
+			"\tSegment duration: %d seconds\n"
+			"\tSegment size: %d samples\n"
 			"\tCalibration reference: %.1f db\n"
 			"\tCalibration time: %d\n"
 			"\tRecord period: %d segments\n"
 			"\tFile period: %d segments\n"
 			"\tRun duration: %d seconds\n\n",
 			config_struct->input_device,
-			option_input_filename,
+			config_struct->input_file,
 			output_get_filename(),
 			config_struct->output_path,
 			config_struct->identification,
 			config_struct->sample_rate,
-			config_struct->segment_duration,
 			config_struct->block_size,
+			config_struct->segment_duration,
+			config_struct->segment_size,
 			config_struct->calibration_reference,
 			config_struct->calibration_time,
 			config_struct->record_period,
 			config_struct->file_period,
 			run_duration);
 
-	//	------------------------------------------------------------------------
+	if (verbose_flag)
+		printf("Saving configuration in " CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME "\n");
+	config_save(config_struct, CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME);
 
-	int continous = option_input_filename == NULL;
-	output_init(continous);
+	//----------------------------------------------------------------------
 
-	int result = input_device_open(option_input_filename, config_struct->input_device, config_struct);
+	int continuous = option_input_filename == NULL;
+
+	output_init(continuous);
+
+	int result = input_device_open(config_struct);
 	if (result != 0)
 		exit(EXIT_FAILURE);
 
-	int samples_per_segment = config_struct->segment_duration * config_struct->sample_rate;
-	int blocks_per_segment = samples_per_segment / config_struct->block_size;
-	int last_block_size = samples_per_segment - blocks_per_segment * config_struct->block_size;
-	if (last_block_size != 0)
-		blocks_per_segment += 1;
-	else
-		last_block_size = config_struct->block_size;
-
-	if (verbose_flag) {
-		printf("\tBlocks per segment: %d\n", blocks_per_segment);
-		printf("\tLast block size: %d\n\n", last_block_size);
-	}
-	Block *block = block_create(blocks_per_segment, config_struct->block_size, last_block_size);
-
 	Timeweight *twfilter = timeweight_create();
-	Afilter *afilter = aweighting_create(aweighting_get_coef_a(config_struct->sample_rate),
-									aweighting_get_coef_b(config_struct->sample_rate), 6);
+	Afilter *afilter = aweighting_create(3);
 
 	unsigned seconds = 0;	// Time elapsed based in segment duration
 
-	//-------------------------------CALIBRAÇÃO---------------------------------
+	int16_t *samples_int16 = malloc(CONFIG_BLOCK_SIZE * sizeof *samples_int16);
+	float *block_a = malloc(CONFIG_BLOCK_SIZE * sizeof *block_a);
+	float *block_c = malloc(CONFIG_BLOCK_SIZE * sizeof *block_c);
+
+	unsigned segment_buffer_size = (((config_struct->segment_size + CONFIG_BLOCK_SIZE - 1)
+								/ CONFIG_BLOCK_SIZE) + 1)
+								* CONFIG_BLOCK_SIZE;
+	Sbuffer *ring_b = sbuffer_create(segment_buffer_size);
+	Sbuffer *ring_d = sbuffer_create(segment_buffer_size);
+
+	Levels *levels = levels_create();
+
+	//-------------------------------CALIBRAÇÃO-----------------------------
+
 	float calibration_delta = 0;
+
 	if (config_struct->calibration_time > 0) {
-		unsigned calibration_amount = config_struct->calibration_time + CONFIG_CALIBRATION_GUARD;
-		Calibrator *cal = calibrator_create(blocks_per_segment, config_struct->calibration_time);
-		printf("Starting Calibration in %d seconds ...\n", calibration_amount);
-		while (1) {
-			if (seconds >= calibration_amount) {
-				printf("Calculating calibrated value...\n");
-				calibration_delta = config_struct->calibration_reference - calibrator_calculate(cal);
+		float sum = 0;
+		printf("\nCalibrating for %d seconds\n",config_struct->calibration_time);
+		while (seconds < config_struct->calibration_time + CONFIG_CALIBRATION_GUARD) {
+			size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
+			if (lenght_read == 0)
 				break;
-			}
-			unsigned block_size = block_next_size(block);
-			unsigned block_size_read = input_device_read(block->sample_int16, block_size);
-			if (block_size_read == 0)
-				break;
-			block->count = block_size_read;
+			samples_int16_to_float(samples_int16, block_a, lenght_read);
+			float *block_ring_b = sbuffer_write_ptr(ring_b);
+			assert(lenght_read <= sbuffer_write_size(ring_b));
 
-			if (seconds >= (calibration_amount - config_struct->calibration_time)) {
-				block_sample_to_float(block);
-				aweighting_filtering(block->sample_a, block->sample_b, block->count, afilter);
-				process_block_square(block);
-				timeweight_filtering(block->sample_c, block->sample_d, block->count, twfilter);
-				calibrator_block(block, cal);
-			}
+			aweighting_filtering(afilter, block_a, block_ring_b, lenght_read);
+			sbuffer_write_produces(ring_b, lenght_read);
+			process_block_square(block_ring_b, block_c, lenght_read);
+			sbuffer_read_consumes(ring_b, lenght_read);
+		
+			float *block_ring_d = sbuffer_write_ptr(ring_d);
+			assert(lenght_read <= sbuffer_write_size(ring_d));
 
-			if (++block->block_number == blocks_per_segment) {
+			timeweight_filtering(twfilter, block_c, block_ring_d, lenght_read);
+			sbuffer_write_produces(ring_d, lenght_read);
+
+			if (sbuffer_size(ring_d) >= config_struct->segment_size) {
+				process_segment(levels, ring_d, calibration_delta);
+				levels->segment_number = 0;
+				if (seconds >= CONFIG_CALIBRATION_GUARD)
+					sum += levels->LAE[0];
 				seconds += config_struct->segment_duration;
-				block->block_number = 0;
-				printf("%d ", seconds);
+				if (verbose_flag)
+					putchar('.');
 			}
 		}
-		calibrator_destroy(cal);
+		calibration_delta = config_struct->calibration_reference -
+			linear_to_decibel(sum / config_struct->calibration_time - CONFIG_CALIBRATION_GUARD);
+		
+		if (verbose_flag)
+			printf("\nCalibration delta: %.1f\n", calibration_delta);
 	}
 
-	printf("\tCalibration adjust: %.1f db\n", calibration_delta);
-
-	//--------------------------------------------------------------------------
+	//----------------------------------------------------------------------
 
 	printf("\nStarting sound level measuring...\n");
 
-	audit_open();
+	Audit *wa = NULL;
+	Audit *wb = NULL;
+	Audit *wc = NULL;
+	Audit *wd = NULL;
 
+	if (!continuous) {
+		wa = audit_create("a");
+		wb = audit_create("b");
+		wc = audit_create("c");
+		wd = audit_create("d");
+	}
 #if 0
 	//-----Connect to Python Server----
 	Client_Struct *cli = initClient();
@@ -320,27 +368,38 @@ int main (int argc, char *argv[]) {
 	connectSocket(cli, socket_desc, server);
 #endif
 	lae_average_create(config_struct->laeq_time);
-	Levels *levels = levels_create(blocks_per_segment);
+	
 	while (run_duration == 0 || seconds < run_duration) {
-		unsigned block_size = block_next_size(block);
-//		printf("%zd %zd\n", block->block_number, block_size);
-		unsigned block_size_read = input_device_read(block->sample_int16, block_size);
-		if (block_size_read == 0)
+		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
+		if (lenght_read == 0)
 			break;
-		block->count = block_size_read;
-		block_sample_to_float(block);
-		aweighting_filtering(block->sample_a, block->sample_b, block->count, afilter);
-		process_block_square(block);
-		process_block_lapeak(block, levels);
-		timeweight_filtering(block->sample_c, block->sample_d, block->count, twfilter);
-		process_block(block, levels);
-		audit_block(block);
+		samples_int16_to_float(samples_int16, block_a, lenght_read);
+		float *block_ring_b = sbuffer_write_ptr(ring_b);
+		assert(lenght_read <= sbuffer_write_size(ring_b));
 
-		if (++block->block_number == blocks_per_segment) {
-			process_segment(levels, calibration_delta);
-			audit_segment(levels);
-			levels->block_number = 0;
-			block->block_number = 0;
+		aweighting_filtering(afilter, block_a, block_ring_b, lenght_read);
+
+		sbuffer_write_produces(ring_b, lenght_read);
+
+		process_segment_lapeak(levels, ring_b, calibration_delta);
+
+		process_block_square(block_ring_b, block_c, lenght_read);
+
+		float *block_ring_d = sbuffer_write_ptr(ring_d);
+		assert(lenght_read <= sbuffer_write_size(ring_d));
+
+		timeweight_filtering(twfilter, block_c, block_ring_d, lenght_read);
+		sbuffer_write_produces(ring_d, lenght_read);
+
+		if (!continuous) {
+			audit_append_samples(wa, block_a, lenght_read);
+			audit_append_samples(wb, block_ring_b, lenght_read);
+			audit_append_samples(wc, block_c, lenght_read);
+			audit_append_samples(wd, block_ring_d, lenght_read);
+		}
+
+		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
+			process_segment(levels, ring_d, calibration_delta);
 			seconds += config_struct->segment_duration;
 		}
 
@@ -353,14 +412,23 @@ int main (int argc, char *argv[]) {
 	output_record(levels);
 	output_file_close();
 
-	audit_close();
+	if (!continuous) {
+		audit_destroy(wa);
+		audit_destroy(wb);
+		audit_destroy(wc);
+		audit_destroy(wd);
+	}
 
 	printf("Total time: %d\n", seconds);
 	input_device_close();
-	block_destroy(block);
 	levels_destroy(levels);
 	timeweight_destroy(twfilter);
 	aweighting_destroy(afilter);
 	lae_average_destroy();
 	config_destroy(config_struct);
+	free(block_a);
+	free(block_c);
+	free(samples_int16);
+	sbuffer_destroy(ring_b);
+	sbuffer_destroy(ring_d);
 }

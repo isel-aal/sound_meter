@@ -1,38 +1,75 @@
-## Configuração
-------------
-O programa de medição de níveis sonoros é configurável em compilação e em execução através de opções na linha de comando ou de ficheiro de configuração.
+﻿## Configuração
 
-A configuração por opções na linha de comando prevalece sobre a configuração em ficheiro.
+O programa de medição de níveis sonoros é configurável em compilação e em execução por meio de:
+* opções na linha de comando;
+* variáveis de ambiente;
+* ficheiro de configuração.
 
-| Parâmetro | Valor embutido no código | Opção de linha de comando | Ficheiro de configuração  |
-| ------------------------ | --------------- | ---------------- | --------------------- | 
-| Ficheiro de configuração | sound_meter.conf | -g <filename>   |                       |
-| Placa de som             | default         | -d <name>        | input_device          |
-| Ficheiro de entrada      |                 | -i <filename>    |                       |
-| Ficheiro de saída        | sound_meter     | -o <filename>    |                       |
-| Local do                 | data/           |                  | output_path           |
-| ficheiro de saída        |                 |                  |                       |
-| Formato de saída         | CSV             | -f CSV | JSON    |                       |
-| Ritmo de amostragem      | 48000           | -r <value>       | sample_rate           |
-| Identificação            | XXXX_NNNN       | -n <id>          | identification        |
-| Duração do processamento |                 | -t <seconds>     |                       |
-| Calibrar                 |                 | -c <seconds>     | calibration_time      |
-| Calibração de referência | 94.0 db         |                  | calibration_reference |
-| Duração do segmento      | 1               |                  | segment_duration      |
-| Duração do bloco         | 1024            |                  | block_size            |
-| Período de registo       | 60              |                  | record_period         |
-| Período de ficheiro      | 60*60           |                  | file_period           |
-| Memória de cálculo de LAeq | 60\*60\*24    |                  | laeq_time             |
+A configuração por opção na linha de comando prevalece sobre a configuração por variável de ambiente ou por ficheiro ficheiro.
 
-### Definição dos parâmetros de configuração:
+O programa pode processar em tempo real som captado por microfone -- designado por **modo contínuo** -- ou processar som gravado em ficheiro no formato WAVE -- designado por **modo discreto**.
+
+| Parâmetro | Valor embutido no código | Opção de linha de comando | Variável de ambiente | Ficheiro de configuração |
+| --------- | --------- | -------------- | ------------- | ----------|
+| Ficheiro de configuração | sound_meter_config.json | -g \<filename\> |            SOUND_METER_CONFIG_FILENAME | |
+| Local do ficheiro de configuração | ./ | | SOUND_METER_CONFIG_FILEPATH | |
+| Identificação | XXXX_NNNN | -n \<id\> | | identification |
+| Placa de som  | default | -d \<name\> | | input_device |
+| Ficheiro de entrada | | -i \<filename\> | | |
+| Ficheiro de saída  | sound_meter | -o \<filename\> | | |
+| Diretoria para ficheiros de saída | data/ | | | output_path |
+| Formato de saída | CSV | -f CSV \| JSON | | output_format |
+| Ritmo de amostragem | 48000 | -r \<value\> | | sample_rate  |
+| Duração do processamento | | -t \<seconds\> | | |
+| Periodo de calibração | | -c \<seconds\> | | |
+| Calibração de referência | 94.0 db | | | calibration_reference |
+| Duração do segmento | 1 | | | segment_duration |
+| Duração do bloco | 1024 | | | block_size |
+| Período de registo | 60 | | record_period |
+| Período de ficheiro | 60 * 60 | | file_period |
+
+### Definição dos parâmetros de configuração
+Ficheiro de configuração
+: Ficheiro com a definição dos parâmetros de configuração em formato JSON.
+ 
+ Local do ficheiro de configuração
+ : Local do sistema de ficheiros onde se encontra o ficheiro de configuração.
+ 
 Identificação
 : Identificação da estação.
 
 Placa de som
 : Dispositivo de captura de som no formato da bibliteca ALSA. No formato **hw:0,0**, o primeiro número identifica a *card* o segundo o *device* dentro da *card*.
 
+Ficheiro de entrada
+: O ficheiro de entrada para operação em modo discreto.
+
+Ficheiro de saída
+: Ficheiro com os níveis calculados. O formato pode ser CSV ou JSON. Em modo contínuo os nomes dos ficheiros de saída, sucessivamente gerados, são formados pelo dia e hora do momento em que são criados. Por exemplo, ``20221231074155.csv`` será o nome do ficheiro criado a 31/12/2022 às 7:41:55.
+ 
+Em modo discreto se esta opção for omitida o ficheiro de saída terá o mesmo nome do ficheiro de entrada terminado com a a extensão do formato escolhido. Por exemplo:
+```
+$ sound_meter -i TestNoise.wav -f JSON
+```
+É gerado um ficheiro com o nome ``TestNoise.wav.json`` depositado na diretoria de saída.
+
+Diretoria para ficheiros de saída
+: Caminho para a diretoria onde são depositados os ficheiros de registo dos níveis calculados.
+
+Formato de saída
+: Formato do ficheiro de saída com os níveis sonoros. Os formatos possíveis são CSV ou JSON.
+
 Ritmo de amostragem
-: Ritmo de amostragem em amostras por segundo.
+: Ritmo de amostragem em amostras por segundo. Ignorado em modo discreto.
+
+Duração do processamento
+: Em modo contínuo pode ser definido um tempo limite de processamento desde o momento de início. O tempo é definido em segundos.
+
+Período de calibração
+: Duração do periodo de calibração no arranque da aplicação, expressa em número de segmentos. O valor zero significa que não faz calibração inicial. Neste caso a aplicação utiliza o valor definido no ficheiro de configuração em **Calibração de referência**.
+
+Calibração de referência
+: Valor de calibração de referência (em dba).
 
 Duração do segmento
 : Duração do segmento em segundos.
@@ -41,59 +78,34 @@ Dimensão do bloco
 : Dimensão do bloco em número de amostras.
 
 Período de registo
-: Periodo de registo de dados em número de segmentos.
+: Período de registo em ficheiro dos níveis calculados. Período definido em número de segmentos.
 
 Período de ficheiro
-: Periodo de criação de novo ficheiro de registo em número de segmentos. Deve ser um múltiplo de **record_period**.
-
-Local do ficheiro de saída
-: Caminho para a diretoria onde são depositados os ficheiros de registo de resultados.
+: Período de criação de novo ficheiro de registo em número de segmentos. Deve ser um múltiplo de **Período de registo**.
 
 Memória de cálculo de LAeq
 : Duração da memória de cálculo de LAeq em número de segmentos.
 
-Período de calibração
-: Periodo de calibração no arranque da aplicação, expressa em número de segmentos. O valor zero significa que não faz calibração inicial -- a aplicação utiliza o valor definido em **calibration_reference**.
-
-Calibração de referência
-: Valor de calibração de referência (em db).
-
 ### Ficheiro de configuração
 
 O ficheiro de configuração pode ser definido na linha de comando com a opção ``-g``.
-Na sua ausência, é usado o nome embutido no código, definido em ``config.h`` sob o símbolo ``CONFIG_CONFIG_FILENAME``. Atualmente ``sound_meter.conf``.
+Na sua ausência, é usado o nome definido na variável de ambiente ``SOUND_METER_CONFIG_FILENAME``
+Na ausência de ambas as definições anteriores é utilizado o nome embutido no código, definido em ``config.h`` sob o símbolo ``CONFIG_CONFIG_FILENAME``. Atualmente ``sound_meter_config.json``.
 
-Se o primeiro caráter desta definição for diferente de ``/``, trata-se de um nome ou caminho relativo.
-Neste caso, a localização do ficheiro é definida na variável de ambiente ``SOUND_METER_PATH``
-ou, na sua ausência, pela diretoria corrente em que a aplicação é lançada.
+Se o primeiro caráter desta definição for diferente de ``/`` ou ``.``, trata-se de um nome ou caminho relativo.
+Neste caso, a localização do ficheiro pode ser definida na variável de ambiente ``SOUND_METER_CONFIG_FILEPATH``.
+Na ausência desta variável de ambiênte, considera-se a diretoria corrente onde a aplicação é lançada.
 
 ## Processamento
----
-O cálculo dos níveis sonoros é realizado em intervalos de tempo designados por **segmento**. Esse cálculo é sibdividido em cálculos parciais, realizados sobre blocos de dados, cuja dimensão é configurável em número de amostras.
 
-A duração do segmento e a dimesão do bloco são configuráveis no ficheiro de configuração, com as etiquetas ``segment_duration`` e ``block_size``, respetivamente.
+O cálculo dos níveis sonoros é realizado em intervalos de tempo designados por **segmento**. Esse cálculo assenta em processamentos parciais, realizados sobre blocos de amostras, cuja dimensão é uma potência de 2.
 
-O número de blocos de um segmento depende da sua dimensão e do ritmo de amostragem.
-Por exemplo, se a dimensão do bloco for 1024 amostras e o ritmo de amostragem for 48000 amostras por segundo,
-para um segmento de um segundo, existirão 47 blocos,
-sendo a dimensão do último bloco de 896 amostras.
+A duração do segmento e a dimensão do bloco são configuráveis no ficheiro de configuração, com as etiquetas ``segment_duration`` e ``block_size``, respetivamente.
 
-Se a definição do ritmo de amostragem não for explicita, será utilizado o valor embutido no código ou o definido no ficheiro WAVE, se for o caso.
-
-## Entradas e saídas
----
-O sinal a processar pode ser obtido de ficheiro em formato WAVE ou de placa de som.
-O resultado do processamento -- os níveis sonoros -- são registados em ficheiro, em formato CSV.
-
-### Entrada de sinal
-O ficheiro de entrada é definido com a opção de linha de comando ``-i``. Na sua ausência o sinal de entrada é obtido de placa de som. A identificação da placa de som é definida pela opção de linha de comando ``-d`` ou no ficheiro de configuração com a etiqueta **input_device**.
-
-### Saída de resultados
-O nome do ficheiro de saída pode ser definido com a opção **-o**. Na ausência desta opção, o nome depende da fonte de sinal. Se for um ficheiro WAVE, o ficheiro de saída terá o mesmo nome do ficheiro de entrada, acrescentado da extenção CSV. Se for a placa de som, periodicamente será criado um novo ficheiro de saída.
-O periodo de criação do ficheiro de saída é definido no ficheiro de configuração com a etiqueta **file_period**. Os nomes destes ficheiros são formados pelo dia e hora do momento em que são criados. Por exemplo, ``20221231074155.csv`` será o nome do ficheiro criado a 31/12/2022 às 7:41:55.
+Um segmento não engloba necessariamente um número inteiro de blocos. Pode existir um bloco com uma primeira parte de amostras pertencente a um segmento e segunda parte de amostras pertencente ao bloco seguinte.
 
 ## Instalação
----
+
 ### Instalação no Raspberrypi
 Utilizando a placa de som **Respeaker**
 À data atual 11-1-2023 o *device driver* da placa Respeaker só funciona até à versão 5.10 do Linux. Deve-se instalar a versão lagacy do Raspi OS.
@@ -134,8 +146,8 @@ Ficheiro de configuração: ``/etc/nginx/sites-available/default``.
 Para se ter acesso através do Browser, aos ficheiros produzidos, acrescentar nesse ficheiro:
 ```
 location /data/ {
-	root /home/pi/sound_meter/;
-	autoindex on;
+    root /home/pi/sound_meter/;
+    autoindex on;
 }
 ```
 O caminho para a diretoria onde são depositados deve ser ajustados conforme a configuração da aplicação sound_meter.
@@ -198,8 +210,8 @@ noip2 -c ~/.no-ip/no-ip2.conf -i $address
 
 No ficheiro ``/etc/security/limits.conf`` acrescentar: ::
 ```
-pi		soft	core		unlimited
-pi		hard	core		unlimited
+pi      soft    core        unlimited
+pi      hard    core        unlimited
 ```
 Depois de fazer *reboot* verificar com:
 ```
@@ -218,7 +230,3 @@ $ gdb sound_meter core.xxxxx.yyyyy
 ```
 Depois pode-se usar comandos do gdb.
 Por exemplo: backtrace; up; down.
-
-
-
-
