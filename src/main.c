@@ -24,6 +24,7 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include <sys/time.h>
 #include <time.h>
 #include <getopt.h>
+#include <glib.h>
 
 #include "process.h"
 #include "filter.h"
@@ -301,7 +302,7 @@ int main (int argc, char *argv[])
 
 	Levels *levels = levels_create();
 
-	//-------------------------------CALIBRAÇÃO-----------------------------
+	//-------------------------------CALIBRAÇÃO---------------------------------
 
 	float calibration_delta = 0;
 
@@ -329,16 +330,16 @@ int main (int argc, char *argv[])
 
 			if (sbuffer_size(ring_d) >= config_struct->segment_size) {
 				process_segment(levels, ring_d, calibration_delta);
-				levels->segment_number = 0;
 				if (seconds >= CONFIG_CALIBRATION_GUARD)
 					sum += levels->LAE[0];
+				levels->segment_number = 0;
 				seconds += config_struct->segment_duration;
 				if (verbose_flag)
 					putchar('.');
 			}
 		}
 		calibration_delta = config_struct->calibration_reference -
-			linear_to_decibel(sum / config_struct->calibration_time - CONFIG_CALIBRATION_GUARD);
+			linear_to_decibel(sum / config_struct->calibration_time);
 		
 		if (verbose_flag)
 			printf("\nCalibration delta: %.1f\n", calibration_delta);
@@ -368,7 +369,10 @@ int main (int argc, char *argv[])
 	connectSocket(cli, socket_desc, server);
 #endif
 	lae_average_create(config_struct->laeq_time);
-	
+
+	if (verbose_flag)
+		printf("LAeq, LAFmin, LAE, LAFmax, LApeak\n");
+
 	while (run_duration == 0 || seconds < run_duration) {
 		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
 		if (lenght_read == 0)
@@ -401,6 +405,15 @@ int main (int argc, char *argv[])
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
 			process_segment(levels, ring_d, calibration_delta);
 			seconds += config_struct->segment_duration;
+			if (verbose_flag) {
+				int segment_index = levels->segment_number - 1;
+				printf("\r%6.1f%6.1f%6.1f%6.1f%6.1f\n",
+					levels->LAeq[segment_index],
+					levels->LAFmin[segment_index],
+					levels->LAE[segment_index],
+					levels->LAFmax[segment_index],
+					levels->LApeak[segment_index]);
+			}
 		}
 
 		if (levels->segment_number == config_struct->record_period) {
@@ -418,8 +431,8 @@ int main (int argc, char *argv[])
 		audit_destroy(wc);
 		audit_destroy(wd);
 	}
-
-	printf("Total time: %d\n", seconds);
+	if (verbose_flag)
+		printf("\nTotal time: %d\n", seconds);
 	input_device_close();
 	levels_destroy(levels);
 	timeweight_destroy(twfilter);

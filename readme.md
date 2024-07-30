@@ -11,7 +11,7 @@ O programa pode processar em tempo real som captado por microfone -- designado p
 
 | Parâmetro | Valor embutido no código | Opção de linha de comando | Variável de ambiente | Ficheiro de configuração |
 | --------- | --------- | -------------- | ------------- | ----------|
-| Ficheiro de configuração | sound_meter_config.json | -g \<filename\> |            SOUND_METER_CONFIG_FILENAME | |
+| Ficheiro de configuração | sound_meter_config.json | -g \<filename\> | SOUND_METER_CONFIG_FILENAME | |
 | Local do ficheiro de configuração | ./ | | SOUND_METER_CONFIG_FILEPATH | |
 | Identificação | XXXX_NNNN | -n \<id\> | | identification |
 | Placa de som  | default | -d \<name\> | | input_device |
@@ -25,8 +25,8 @@ O programa pode processar em tempo real som captado por microfone -- designado p
 | Calibração de referência | 94.0 db | | | calibration_reference |
 | Duração do segmento | 1 | | | segment_duration |
 | Duração do bloco | 1024 | | | block_size |
-| Período de registo | 60 | | record_period |
-| Período de ficheiro | 60 * 60 | | file_period |
+| Período de registo | 60 | | | record_period |
+| Período de ficheiro | 60 * 60 | | | file_period |
 
 ### Definição dos parâmetros de configuração
 Ficheiro de configuração

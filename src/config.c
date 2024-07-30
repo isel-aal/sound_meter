@@ -107,12 +107,6 @@ Config *config_load(const char *config_filename)
 	else
 		config->output_path = strdup(CONFIG_OUTPUT_PATH);
 
-	json_t *json_calibration_time = json_object_get(root, "calibration_time");
-	if (json_calibration_time != NULL && json_is_number(json_calibration_time))
-		config->calibration_time = json_number_value(json_calibration_time);
-	else
-		config->calibration_time = CONFIG_CALIBRATION_TIME;
-
 	json_t *json_calibration_value = json_object_get(root, "calibration_reference");
 	if (json_calibration_value != NULL && json_is_number(json_calibration_value))
 		config->calibration_reference = json_number_value(json_calibration_value);
@@ -261,21 +255,6 @@ void config_save(Config *config, const char *config_filename) {
 	}
 
 	if (json_object_set(config_json, "file_period", number) != 0) {
-		fprintf(stderr, "Error saving configuration - adding JSON key/value\n");
-		json_decref(config_json);
-		return;
-	}
-	json_decref(number);
-
-	/* calibration_time */
-	number = json_integer(config->calibration_time);
-	if (str == NULL) {
-		fprintf(stderr, "Error saving configuration - creating JSON string\n");
-		json_decref(config_json);
-		return;
-	}
-
-	if (json_object_set(config_json, "calibration_time", number) != 0) {
 		fprintf(stderr, "Error saving configuration - adding JSON key/value\n");
 		json_decref(config_json);
 		return;
