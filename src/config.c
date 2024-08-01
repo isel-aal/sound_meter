@@ -121,6 +121,12 @@ Config *config_load(const char *config_filename)
 	else
 		config->mqtt_enable = CONFIG_MQTT_ENABLE;
 
+	json_t *json_mqtt_device_credential = json_object_get(root, "mqtt_device_credential");
+	if (json_mqtt_device_credential != NULL && json_is_string(json_mqtt_device_credential))
+		config->mqtt_device_credential = strdup(json_string_value(json_mqtt_device_credential));
+	else
+		config->mqtt_device_credential = strdup(CONFIG_MQTT_DEVICE_CREDENTIAL);
+
 	config->mqtt_broker = CONFIG_MQTT_BROKER;
 	config->mqtt_topic =  CONFIG_MQTT_TOPIC;
 	config->mqtt_qos = CONFIG_MQTT_QOS;
@@ -297,6 +303,21 @@ void config_save(Config *config, const char *config_filename) {
 		return;
 	}
 	json_decref(boolean);
+
+	/* mqtt_device_credential */
+	str = json_string(config->mqtt_device_credential);
+	if (str == NULL) {
+		fprintf(stderr, "Error saving configuration - creating JSON string\n");
+		json_decref(config_json);
+		return;
+	}
+
+	if (json_object_set(config_json, "mqtt_device_credential", str) != 0) {
+		fprintf(stderr, "Error saving configuration - adding JSON key/value\n");
+		json_decref(config_json);
+		return;
+	}
+	json_decref(str);
 
 	if (json_dump_file (config_json, config_filename, JSON_INDENT(8)) != 0) {
 		fprintf(stderr, "Error saving configuration (JSON format). File: %s\n",

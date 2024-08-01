@@ -36,8 +36,8 @@ bool mqtt_begin() {
          return false;
     }
 
-	conn_opts.username = "SOUND_METER_TOKEN";
-	conn_opts.password = "SOUND_METER_TOKEN";
+	conn_opts.username = config_struct->mqtt_device_credential;
+	conn_opts.password = config_struct->mqtt_device_credential;
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
     if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {

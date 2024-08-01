@@ -66,6 +66,8 @@ limitations under the License.
 #define	CONFIG_MQTT_BROKER	"tcp://demo.thingsboard.io:1883"
 #define CONFIG_MQTT_TOPIC	"v1/devices/me/telemetry"
 #define CONFIG_MQTT_QOS		1
+#define CONFIG_MQTT_DEVICE_CREDENTIAL	"undefined"
+
 #define	CONFIG_MQTT_PUBLISH_PERIOD	10	//	Tempo de publicação em número de segmentos
 
 typedef struct config
@@ -91,6 +93,7 @@ typedef struct config
 	char *mqtt_broker;
 	char *mqtt_topic;
 	int mqtt_qos;
+	char *mqtt_device_credential;
 	int mqtt_publish_period;
 } Config;
 

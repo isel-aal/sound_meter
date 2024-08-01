@@ -8,5 +8,6 @@
         "record_period": 60,
         "file_period": 600,
         "calibration_reference": 94,
-        "mqtt_enable": true
+        "mqtt_enable": true,
+        "mqtt_device_credential": "SOUND_METER_TOKEN"
 }
