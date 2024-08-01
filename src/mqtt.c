@@ -81,7 +81,7 @@ bool mqtt_publish(Levels *levels, int segment_number) {
 */
     rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message with delivery token %d delivered\n", token);
-
+    return true;
 }
 
 bool mqtt_end() {

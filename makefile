@@ -1,6 +1,7 @@
-CFLAGS = `pkg-config libwave --cflags` -g -Wall -Werror -pedantic
+CFLAGS = -g -Wall -Werror -pedantic \
+	`pkg-config --cflags glib-2.0 libwave alsa jansson paho-mqtt3c`
 
-LIBS = `pkg-config libwave --libs` -lasound -lm -ljansson
+LIBS = `pkg-config --libs glib-2.0 libwave alsa jansson paho-mqtt3c` -lm
 
 LDFLAGS = -Wall -g
 
@@ -10,7 +11,8 @@ SOURCES = \
 	src/process.c \
 	src/filter.c \
 	src/in_out.c \
-	src/sbuffer.c
+	src/sbuffer.c \
+	src/mqtt.c
 
 OBJECTS = $(SOURCES:%.c=build/%.o)
 
