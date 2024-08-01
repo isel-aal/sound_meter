@@ -30,6 +30,7 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "filter.h"
 #include "config.h"
 #include "in_out.h"
+#include "mqtt.h"
 
 static void help(char *prog_name)
 {
@@ -255,6 +256,7 @@ int main (int argc, char *argv[])
 			"\tCalibration time: %d\n"
 			"\tRecord period: %d segments\n"
 			"\tFile period: %d segments\n"
+			"\tMQTT: %s\n"
 			"\tRun duration: %d seconds\n\n",
 			config_struct->input_device,
 			config_struct->input_file,
@@ -269,6 +271,7 @@ int main (int argc, char *argv[])
 			config_struct->calibration_time,
 			config_struct->record_period,
 			config_struct->file_period,
+			config_struct->mqtt_enable? "true" : "false",	
 			run_duration);
 
 	if (verbose_flag)
@@ -360,14 +363,9 @@ int main (int argc, char *argv[])
 		wc = audit_create("c");
 		wd = audit_create("d");
 	}
-#if 0
-	//-----Connect to Python Server----
-	Client_Struct *cli = initClient();
+	if (config_struct->mqtt_enable)
+		mqtt_begin();
 
-	int socket_desc = 0;
-	struct sockaddr_in server;
-	connectSocket(cli, socket_desc, server);
-#endif
 	lae_average_create(config_struct->laeq_time);
 
 	if (verbose_flag)
@@ -405,6 +403,8 @@ int main (int argc, char *argv[])
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
 			process_segment(levels, ring_d, calibration_delta);
 			seconds += config_struct->segment_duration;
+			if (config_struct->mqtt_enable)
+				mqtt_publish(levels, levels->segment_number - 1);
 			if (verbose_flag) {
 				int segment_index = levels->segment_number - 1;
 				printf("\r%6.1f%6.1f%6.1f%6.1f%6.1f\n",
@@ -419,11 +419,10 @@ int main (int argc, char *argv[])
 		if (levels->segment_number == config_struct->record_period) {
 			output_record(levels);
 			levels->segment_number = 0;
-//			cli->send_counter = cli->send_counter + 1;
 		}
 	}
 	output_record(levels);
-	output_file_close();
+//	output_file_close();
 
 	if (!continuous) {
 		audit_destroy(wa);
@@ -431,6 +430,8 @@ int main (int argc, char *argv[])
 		audit_destroy(wc);
 		audit_destroy(wd);
 	}
+	if (config_struct->mqtt_enable)
+		mqtt_end();
 	if (verbose_flag)
 		printf("\nTotal time: %d\n", seconds);
 	input_device_close();

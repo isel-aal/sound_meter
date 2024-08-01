@@ -15,8 +15,10 @@ add_executable(sound_meter
 	src/in_out.c
 	src/sbuffer.h
 	src/sbuffer.c
+	src/mqtt.h
+	src/mqtt.c
 	)
 
 	find_package(PkgConfig REQUIRED)
-	pkg_check_modules(deps REQUIRED IMPORTED_TARGET jansson libwave alsa glib-2.0)
+	pkg_check_modules(deps REQUIRED IMPORTED_TARGET jansson libwave alsa glib-2.0 paho-mqtt3c)
 	target_link_libraries(sound_meter PkgConfig::deps m)

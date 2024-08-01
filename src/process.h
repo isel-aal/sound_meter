@@ -45,7 +45,7 @@ void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsign
 
 typedef struct {
 	unsigned segment_number;
-	float *LAeq;	//	Valores calculados para cada segmento, num periodo de registo
+	float *LAeq;	//	Valores calculados para cada segmento, num periodo de tempo
 	float *LApeak;
 	float *LAFmax;
 	float *LAFmin;

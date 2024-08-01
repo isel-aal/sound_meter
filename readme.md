@@ -9,7 +9,7 @@ A configuração por opção na linha de comando prevalece sobre a configuraçã
 
 O programa pode processar em tempo real som captado por microfone -- designado por **modo contínuo** -- ou processar som gravado em ficheiro no formato WAVE -- designado por **modo discreto**.
 
-| Parâmetro | Valor embutido no código | Opção de linha de comando | Variável de ambiente | Ficheiro de configuração |
+| Parâmetro | Valor por omissão (*default*) | Opção de linha de comando | Variável de ambiente | Ficheiro de configuração |
 | --------- | --------- | -------------- | ------------- | ----------|
 | Ficheiro de configuração | sound_meter_config.json | -g \<filename\> | SOUND_METER_CONFIG_FILENAME | |
 | Local do ficheiro de configuração | ./ | | SOUND_METER_CONFIG_FILEPATH | |
@@ -27,6 +27,11 @@ O programa pode processar em tempo real som captado por microfone -- designado p
 | Duração do bloco | 1024 | | | block_size |
 | Período de registo | 60 | | | record_period |
 | Período de ficheiro | 60 * 60 | | | file_period |
+| MQTT | false | | | mqtt_enable |
+| MQTT broker | tcp://demo.thingsboard.io:1883 | | | mqtt_broker |
+| MQTT topic | v1/devices/me/telemetry | | | mqtt_topic |
+| MQTT QOS | 1 | | | mqtt_qos |
+
 
 ### Definição dos parâmetros de configuração
 Ficheiro de configuração
@@ -86,6 +91,18 @@ Período de ficheiro
 Memória de cálculo de LAeq
 : Duração da memória de cálculo de LAeq em número de segmentos.
 
+MQTT
+: Ativar a publicação de dados por MQTT.
+
+MQTT broker
+: Endereço de internet do Broker MQTT
+
+MQTT topic
+: Tópico de submissão dos dados.
+ 
+ MQTT QOS
+ : Parâmetro QOS do protocolo MQTT.
+ 
 ### Ficheiro de configuração
 
 O ficheiro de configuração pode ser definido na linha de comando com a opção ``-g``.

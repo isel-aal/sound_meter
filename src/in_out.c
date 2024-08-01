@@ -227,6 +227,7 @@ void output_init(int continous)
 		output_filename = output_new_filename(0);
 	}
 	output_file_open(output_filename);
+	atexit(output_file_close);
 }
 
 //------------------------------------------------------------------------------

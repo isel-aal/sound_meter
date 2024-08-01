@@ -115,6 +115,16 @@ Config *config_load(const char *config_filename)
 
 	config->output_format = CONFIG_OUTPUT_FORMAT;
 
+	json_t *json_mqtt_enable = json_object_get(root, "mqtt_enable");
+	if (json_mqtt_enable != NULL && json_is_boolean(json_mqtt_enable))
+		config->mqtt_enable = json_is_true(json_mqtt_enable);
+	else
+		config->mqtt_enable = CONFIG_MQTT_ENABLE;
+
+	config->mqtt_broker = CONFIG_MQTT_BROKER;
+	config->mqtt_topic =  CONFIG_MQTT_TOPIC;
+	config->mqtt_qos = CONFIG_MQTT_QOS;
+
 	json_decref(root);
 	fclose(config_fd);
 	return config;
@@ -126,6 +136,7 @@ void config_save(Config *config, const char *config_filename) {
 		fprintf(stderr, "Error in saving configuration - creating JSON object root.\n");
 		return;
 	}
+
 	/* identification */
 	json_t *str = json_string(config->identification);
 	if (str == NULL) {
@@ -188,7 +199,7 @@ void config_save(Config *config, const char *config_filename) {
 
 	/* sample_rate */
 	json_t *number = json_integer(config->sample_rate);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
 		return;
@@ -203,22 +214,18 @@ void config_save(Config *config, const char *config_filename) {
 
 	/* segment_duration */
 	number = json_integer(config->segment_duration);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
-		return;
-	}
-
-	if (json_object_set(config_json, "segment_duration", number) != 0) {
-		fprintf(stderr, "Error saving configuration - adding JSON key/value\n");
-		json_decref(config_json);
+		return;	config->mqtt_broker = CONFIG_MQTT_BROKER;
+	config->mqtt_broker = CONFIG_MQTT_BROKER;
 		return;
 	}
 	json_decref(number);
 
 	/* block_size */
 	number = json_integer(config->block_size);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
 		return;
@@ -233,7 +240,7 @@ void config_save(Config *config, const char *config_filename) {
 
 	/* record_period */
 	number = json_integer(config->record_period);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
 		return;
@@ -248,7 +255,7 @@ void config_save(Config *config, const char *config_filename) {
 
 	/* file_period */
 	number = json_integer(config->file_period);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
 		return;
@@ -263,7 +270,7 @@ void config_save(Config *config, const char *config_filename) {
 
 	/* calibration_reference */
 	number = json_integer(config->calibration_reference);
-	if (str == NULL) {
+	if (number == NULL) {
 		fprintf(stderr, "Error saving configuration - creating JSON string\n");
 		json_decref(config_json);
 		return;
@@ -275,6 +282,21 @@ void config_save(Config *config, const char *config_filename) {
 		return;
 	}
 	json_decref(number);
+
+	/* http enable */
+	json_t *boolean = json_boolean(config->mqtt_enable);
+	if (boolean == NULL) {
+		fprintf(stderr, "Error saving configuration - creating JSON boolean\n");
+		json_decref(config_json);
+		return;
+	}
+
+	if (json_object_set(config_json, "mqtt_enable", boolean) != 0) {
+		fprintf(stderr, "Error saving configuration - adding JSON key/value\n");
+		json_decref(config_json);
+		return;
+	}
+	json_decref(boolean);
 
 	if (json_dump_file (config_json, config_filename, JSON_INDENT(8)) != 0) {
 		fprintf(stderr, "Error saving configuration (JSON format). File: %s\n",

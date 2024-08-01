@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <stdbool.h>
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -59,6 +61,13 @@ limitations under the License.
 #define CONFIG_CALIBRATION_TIME 0  //	tempo útil de calibração
 #define CONFIG_CALIBRATION_GUARD 2 //	guarda desde o arranque do programa até ao início da calibração
 
+
+#define	CONFIG_MQTT_ENABLE	false
+#define	CONFIG_MQTT_BROKER	"tcp://demo.thingsboard.io:1883"
+#define CONFIG_MQTT_TOPIC	"v1/devices/me/telemetry"
+#define CONFIG_MQTT_QOS		1
+#define	CONFIG_MQTT_PUBLISH_PERIOD	10	//	Tempo de publicação em número de segmentos
+
 typedef struct config
 {
 	char *identification;		// identificador da estação
@@ -77,6 +86,12 @@ typedef struct config
 
 	unsigned calibration_time;	// tempo despendido na calibração
 	float calibration_reference;	// valor de referência de calibração
+
+	bool mqtt_enable;
+	char *mqtt_broker;
+	char *mqtt_topic;
+	int mqtt_qos;
+	int mqtt_publish_period;
 } Config;
 
 Config *config_load(const char *config_filename);
