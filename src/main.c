@@ -196,7 +196,7 @@ int main (int argc, char *argv[])
 
 	config_struct = config_load(config_pathname);
 	if (config_struct == NULL)
-		exit(EXIT_FAILURE);
+		config_struct = config_defaults();
 
 	free(config_pathname);
 

@@ -30,6 +30,32 @@ void config_destroy(Config *config)
 	free(config);
 }
 
+Config *config_defaults() {
+	Config *config = malloc(sizeof *config);
+	if (config == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		return NULL;
+	}
+	memset(config, 0, sizeof *config);
+	config->identification = strdup(CONFIG_IDENTIFICATION);
+	config->input_device = strdup(CONFIG_INPUT_DEVICE);
+	config->sample_rate = CONFIG_SAMPLE_RATE;
+	config->segment_duration = CONFIG_SEGMENT_DURATION;
+	config->block_size = CONFIG_BLOCK_SIZE;
+	config->record_period = CONFIG_RECORD_PERIOD;
+	config->file_period = CONFIG_FILE_TIME;
+	config->laeq_time = CONFIG_LAEQ_TIME;
+	config->output_path = strdup(CONFIG_OUTPUT_PATH);
+	config->calibration_reference = CONFIG_CALIBRATION_DEFAULT;
+	config->output_format = CONFIG_OUTPUT_FORMAT;
+	config->mqtt_enable = CONFIG_MQTT_ENABLE;
+	config->mqtt_device_credential = strdup(CONFIG_MQTT_DEVICE_CREDENTIAL);
+	config->mqtt_broker = CONFIG_MQTT_BROKER;
+	config->mqtt_topic =  CONFIG_MQTT_TOPIC;
+	config->mqtt_qos = CONFIG_MQTT_QOS;
+	return config;
+}
+
 Config *config_load(const char *config_filename)
 {
 	Config *config = malloc(sizeof *config);

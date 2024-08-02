@@ -99,6 +99,7 @@ typedef struct config
 
 Config *config_load(const char *config_filename);
 void config_save(Config *config, const char *config_filename);
+Config *config_defaults();
 
 void config_destroy(Config *config);
 
