@@ -30,13 +30,15 @@ typedef struct input_device {
 	};
 } Input_device;
 
-int input_device_open(Config *);
+bool input_device_open(Config *);
 size_t input_device_read(void *buffer, size_t frames);
 void input_device_close();
 
-void output_init(int);
+void output_open(bool);
+void output_close();
+
 void output_set_filename(const char *filename, const char *extension);
-char *output_get_filename();
+char *output_get_filepath();
 void output_record(Levels *levels);
 void output_file_close();
 

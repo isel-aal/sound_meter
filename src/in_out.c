@@ -22,7 +22,7 @@ limitations under the License.
 
 static Input_device device;
 
-int input_device_open(Config *config)
+bool input_device_open(Config *config)
 {
 	if (config->input_file == NULL)	{
 		device.device = DEVICE_SOUND_CARD;
@@ -31,7 +31,7 @@ int input_device_open(Config *config)
 			fprintf(stderr, "cannot open audio device %s (%s)\n",
 					config->input_device,
 					snd_strerror(result));
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		result = snd_pcm_set_params(device.alsa_handle,
 					CONFIG_PCM_FORMAT, /* mudar */
@@ -42,14 +42,14 @@ int input_device_open(Config *config)
 					500000); /* 0.5 sec */
 		if (result < 0) {
 			fprintf(stderr, "snd_pcm_set_params: %s\n", snd_strerror(result));
-			exit(EXIT_FAILURE);
+			return false;
 		}
 
 		result = snd_pcm_prepare(device.alsa_handle);
 		if (result < 0) {
 			fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
 					snd_strerror(result));
-			exit(EXIT_FAILURE);
+			return false;
 		}
 	}
 	else {
@@ -57,12 +57,12 @@ int input_device_open(Config *config)
 		device.wave = wave_load(config->input_file);
 		if (device.wave == NULL) {
 			fprintf(stderr, "Can't load wave file %s\n", config->input_file);
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		config->sample_rate = wave_get_sample_rate(device.wave);
 		config->bits_per_sample = wave_get_bits_per_sample(device.wave);
 	}
-	return 0;
+	return true;
 }
 
 size_t input_device_read(void *buffer, size_t nframes)
@@ -72,7 +72,7 @@ size_t input_device_read(void *buffer, size_t nframes)
 		if (read_frames < 0) {
 			fprintf(stderr, "read from audio interface failed (%s)\n",
 					snd_strerror(read_frames));
-			exit(EXIT_FAILURE);
+			return 0;
 		}
 		return read_frames;
 	}
@@ -85,7 +85,9 @@ size_t input_device_read(void *buffer, size_t nframes)
 void input_device_close()
 {
 	if (device.device == DEVICE_SOUND_CARD) {
-		snd_pcm_close(device.alsa_handle);
+		int result_code = snd_pcm_close(device.alsa_handle);
+		if (result_code < 0)
+			fprintf(stderr, "Error closing sound card\n");
 	}
 	else if (device.device == DEVICE_WAVE) {
 		wave_destroy(device.wave);
@@ -95,78 +97,213 @@ void input_device_close()
 //------------------------------------------------------------------------------
 //	Output
 
-enum
-{
-	OUTPUT_FORMAT_JSON,
-	OUTPUT_FORMAT_CSV
-};
-// static int output_format = OUTPUT_FORMAT_JSON;
-static char *output_filename = NULL;
+static char *output_filepath = NULL;
+
 static FILE *output_fd = NULL;
+
+static json_t *output_json;
+
+static int output_index;
+
+static time_t calendar;
+static unsigned output_time; //	Tempo decorrido para o ficheiro atual
+
+static void output_new_filename(time_t time);
+static void output_file_open(char *filepath);
+
+void output_open(bool continous)
+{
+	calendar = time(NULL);
+	if (continous)
+		output_new_filename(0);
+	output_file_open(output_filepath);
+}
+
+void output_close()
+{
+	output_file_close();
+	free(output_filepath);
+}
 
 void output_file_close()
 {
-#if 0
-	if (output_format == OUTPUT_FORMAT_JSON)
-		json_dumpf(root, output_fd, 0);
-#endif
-	free(output_filename);
+	if (strcmp(config_struct->output_format, ".json") == 0)
+		json_dumpf(output_json, output_fd, JSON_REAL_PRECISION(3));
 	if (output_fd != NULL)
 		fclose(output_fd);
 	output_fd = NULL;
 }
 
-static unsigned output_time; //	Tempo decorrido para o ficheiro atual
-static time_t calendar;
-
-static char *output_new_filename(unsigned time)
+static char *output_init_filename()
 {
-	size_t filename_size = strlen("AAAAMMDDHHMMSS") + strlen(config_struct->output_format) + 1;
-	char *filename = malloc(filename_size);
-	if (filename == NULL) {
-		fprintf(stderr, "Out of memory\n");
-		exit(EXIT_FAILURE);
-	}
-	calendar += time;
-	strftime(filename, filename_size, "%Y%m%d%H%M%S", localtime(&calendar));
-	strcat(filename, config_struct->output_format);
-	return filename;
-}
-
-static void output_file_open(char *filename)
-{
-	size_t filepath_size = strlen(config_struct->output_path) + strlen(filename) + 1;
+	size_t date_position = strlen(config_struct->output_path)
+		+ strlen(config_struct->output_filename);
+	size_t filepath_size = date_position
+		+ strlen("AAAAMMDDHHMMSS")
+		+ strlen(config_struct->output_format) + 1;
 	char *filepath = malloc(filepath_size);
 	if (filepath == NULL) {
 		fprintf(stderr, "Out of memory\n");
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
 	strcpy(filepath, config_struct->output_path);
-	strcat(filepath, filename);
+	strcat(filepath, config_struct->output_filename);
+	strcat(filepath, "AAAAMMDDHHMMSS");
+	strcat(filepath, config_struct->output_format);
+	return filepath;
+}
+
+static void output_new_filename(time_t time)
+{
+	calendar += time;
+	size_t date_size = strlen("AAAAMMDDHHMMSS");
+	char buffer[date_size + 1];
+	size_t date_position = strlen(config_struct->output_path)
+		+ strlen(config_struct->output_filename);
+	strftime(buffer, sizeof buffer, "%Y%m%d%H%M%S", localtime(&calendar));
+	for (size_t i = 0; i < date_size; ++i)
+		(output_filepath + date_position)[i] = buffer[i];
+}
+
+static json_t *LAeq_json;
+static json_t *LAE_json;
+static json_t *LAFmin_json;
+static json_t *LAFmax_json;
+static json_t *LApeak_json;
+
+static void output_file_open(char *filepath)
+{
 	output_fd = fopen(filepath, "w");
 	if (output_fd == NULL) {
 		fprintf(stderr, "fopen(%s, \"w\") error: %s\n", filepath, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	free(filepath);
-	fprintf(output_fd, "LAeq, LAFmin, LAE, LAFmax, LApeak\n");
+	if (strcmp(config_struct->output_format, ".csv") == 0)
+		fprintf(output_fd, "LAeq, LAFmin, LAE, LAFmax, LApeak\n");
+	else if (strcmp(config_struct->output_format, ".json") == 0) {
+	/*
+	{
+		"ts":xxxxxxxxx,
+		"segment": xx,
+		"levels": {
+			"LAeq": [],
+			"LAE": [],
+			"LAFmin": [],
+			"LAFmax": [],
+			"LApeak": []
+		}
+	}
+	*/
+	output_json = json_object();
+	if (output_json == NULL) {
+		fprintf(stderr, "Output: error creating JSON object \"output_json\".\n");
+		return;
+	}
+	json_t *object_json = json_integer(calendar);
+	if (object_json != NULL) {
+		if (json_object_set_new(output_json, "ts", object_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"ts\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	object_json = json_integer(config_struct->segment_duration);
+	if (object_json != NULL) {
+		if (json_object_set_new(output_json, "segment", object_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"segment\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	json_t *levels_json = json_object();
+	if (levels_json != NULL) {
+		if (json_object_set_new(output_json, "levels", levels_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"levels\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	LAeq_json = json_array();
+	if (LAeq_json != NULL) {
+		if (json_object_set_new(levels_json, "LAeq", LAeq_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"LAeq\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	LAE_json = json_array();
+	if (LAE_json != NULL) {
+		if (json_object_set_new(levels_json, "LAE", LAE_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"LAE\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	LAFmin_json = json_array();
+	if (LAFmin_json != NULL) {
+		if (json_object_set_new(levels_json, "LAFmin", LAFmin_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"LAFmin\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	LAFmax_json = json_array();
+	if (LAFmax_json != NULL) {
+		if (json_object_set_new(levels_json, "LAFmax", LAFmax_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"LAFmax\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	LApeak_json = json_array();
+	if (LApeak_json != NULL) {
+		if (json_object_set_new(levels_json, "LApeak", LApeak_json) != 0) {
+			fprintf(stderr, "Output: error adding JSON field \"LApeak\" ("__FILE__": %d)\n", __LINE__);
+			return;
+		}
+	}
+	output_index = 0;
+	}
+	else {
+		fprintf(stderr, "Output: no output format recognized\n");
+	}
+}
+
+#define JSON_ARRAY_SET(level_array_json, level_value) \
+{ \
+	json_t *real_json = json_real(level_value); \
+	if (real_json == NULL) { \
+		fprintf(stderr, "Output: error creating real_json ("__FILE__": %d)\n", __LINE__); \
+		return; \
+	} \
+	if (json_array_append(level_array_json, real_json) != 0) { \
+		fprintf(stderr, "Output: error set " #level_array_json "[i] ("__FILE__": %d)\n", __LINE__); \
+		return; \
+	} \
 }
 
 void output_record(Levels *levels)
 {
+	if (strcmp(config_struct->output_format, ".csv") == 0)
+	{
 	for (unsigned i = 0; i < levels->segment_number; ++i) {
 		fprintf(output_fd, "%5.1f, %5.1f, %5.1f, %5.1f, %5.1f\n",
 				// fprintf(output_fd, "%5.6f, %5.6f, %5.6f, %5.6f, %5.6f\n",
 				levels->LAeq[i], levels->LAFmin[i], levels->LAE[i],
 				levels->LAFmax[i], levels->LApeak[i]);
 	}
+	}
+	else if (strcmp(config_struct->output_format, ".json") == 0)
+	{
+	for (unsigned i = 0; i < levels->segment_number; ++i) {
+		JSON_ARRAY_SET(LAeq_json, levels->LAeq[i]);
+		JSON_ARRAY_SET(LAE_json, levels->LAE[i]);
+		JSON_ARRAY_SET(LAFmin_json, levels->LAFmin[i]);
+		JSON_ARRAY_SET(LAFmax_json, levels->LAFmax[i]);
+		JSON_ARRAY_SET(LApeak_json, levels->LApeak[i]);
+	}
+	output_index += levels->segment_number;
+	}
 	output_time += config_struct->record_period; //	tempo de registo
 	fflush(output_fd);
 	fsync(fileno(output_fd));
 	if (output_time >= config_struct->file_period) { // altura de mudança de ficheiro
 		output_file_close();
-		output_filename = output_new_filename(config_struct->segment_duration * output_time);
-		output_file_open(output_filename);
+		output_new_filename(config_struct->segment_duration * output_time);
+		output_file_open(output_filepath);
 		output_time = 0;
 	}
 }
@@ -203,31 +340,51 @@ static char *get_stem(const char *fullname)
 	return stem;
 }
 
-void output_set_filename(const char *fullpath, const char *extension)
-{
-	const char *filename = get_filename(fullpath);
-	output_filename = malloc(strlen(filename) + strlen(extension) + 1);
-	if (output_filename == NULL) {
+static char *concat2(const char *path, const char *filename) {
+	char *filepath = malloc(strlen(path) + strlen(filename) + 1);
+	if (filepath == NULL) {
 		fprintf(stderr, "Out of memory\n");
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
-	strcpy(output_filename, filename);
-	strcat(output_filename, extension);
+	strcpy(filepath, path);
+	strcat(filepath, filename);
+	return filepath;
 }
 
-char *output_get_filename()
-{
-	return output_filename;
+static char *concat3(const char *path, const char *filename, const char *extention) {
+	char *filepath = malloc(strlen(path) + strlen(filename) + strlen(extention) + 1);
+	if (filepath == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		return NULL;
+	}
+	strcpy(filepath, path);
+	strcat(filepath, filename);
+	strcat(filepath, extention);
+	return filepath;
 }
 
-void output_init(int continous)
+void output_set_filename(const char *option_output_filename, const char *option_input_filename)
 {
-	if (continous) {
-		calendar = time(NULL);
-		output_filename = output_new_filename(0);
+	if (option_output_filename != NULL) {
+		char first_letter = option_output_filename[0];
+		if (first_letter != '/' && first_letter != '.') // absoluto / relativo
+			output_filepath = concat2(config_struct->output_path, option_output_filename);
+		else
+			output_filepath = strdup(option_output_filename);
 	}
-	output_file_open(output_filename);
-	atexit(output_file_close);
+	else if (option_input_filename != NULL) {
+		output_filepath = concat3(config_struct->output_path,
+					get_filename(option_input_filename),
+					config_struct->output_format);
+	}
+	else {
+		output_filepath = output_init_filename();
+	}
+}
+
+char *output_get_filepath()
+{
+	return output_filepath;
 }
 
 //------------------------------------------------------------------------------
