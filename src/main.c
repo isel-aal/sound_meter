@@ -32,6 +32,13 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "in_out.h"
 #include "mqtt.h"
 
+static bool running = true;
+
+static void int_handler(int unused) {
+	running = false;
+}
+
+
 static void help(char *prog_name)
 {
 	printf("Usage: %s [options] <source file_name>\n"
@@ -81,7 +88,7 @@ int main (int argc, char *argv[])
 	int error_in_options = false;
 
 	char *option_device_filename = NULL;
-	char *option_input_filename = CONFIG_INPUT_FILENAME;
+	char *option_input_filename = NULL;
 	char *option_output_filename = NULL;
 	char *option_output_format = NULL;
 	char *option_sample_rate = NULL;
@@ -89,6 +96,8 @@ int main (int argc, char *argv[])
 	char *option_calibration_time = NULL;
 	char *option_config_filename = NULL;
 	int run_duration = 0;
+
+	signal(SIGINT, int_handler);
 
 	while ((option_char = getopt_long(argc, argv, ":hvi:o:f:r:d:l:t:c:g:",
 			long_options, &option_index)) != -1) {
@@ -195,97 +204,51 @@ int main (int argc, char *argv[])
 		printf("Configuration pathname: %s\n", config_pathname);
 
 	config_struct = config_load(config_pathname);
-	if (config_struct == NULL)
-		config_struct = config_defaults();
 
 	free(config_pathname);
 
 	//	As opções de linha de comando prevalecem sobre o ficheiro de configuração
 
-	if (option_device_filename != NULL) {
-		if (config_struct->input_device != NULL)
-			free(config_struct->input_device);
-		config_struct->input_device = strdup(option_device_filename);
-	}
+	if (option_device_filename != NULL)
+		config_struct->input_device = option_device_filename;
 
-	if (option_input_filename != NULL) {
-		if (config_struct->input_file != NULL)
-			free(config_struct->input_file);
-		config_struct->input_file = strdup(option_input_filename);
-	}
+	if (option_input_filename != NULL)
+		config_struct->input_file = option_input_filename;
 
-	if (option_output_format != NULL) {
-		if (config_struct->output_format != NULL)
-			free(config_struct->output_format);
-		config_struct->output_format = strdup(option_output_format);
-	}
+	if (option_output_format != NULL)
+		config_struct->output_format = option_output_format;
 
 	if (option_sample_rate != NULL) {
 		config_struct->sample_rate = atoi(option_sample_rate);
 	}
 
-	if (option_identification != NULL) {
-		if (config_struct->identification != NULL)
-			free(config_struct->identification);
-		config_struct->identification = strdup(option_identification);
-	}
+	if (option_identification != NULL)
+		config_struct->identification = option_identification;
 
-	if (option_calibration_time != NULL) {
+	if (option_calibration_time != NULL)
 		config_struct->calibration_time = atoi(option_calibration_time);
-	}
 
-	if (option_output_filename != NULL)
-		output_set_filename(option_output_filename, "");
-	else if (option_input_filename != NULL)
-		output_set_filename(option_input_filename, config_struct->output_format);
+	output_set_filename(option_output_filename, option_input_filename);
 
 	config_struct->segment_size = config_struct->segment_duration * config_struct->sample_rate;
 
-	if (verbose_flag)
-		printf("Program arguments:\n"
-			"\tInput device: %s\n"
-			"\tInput file name: %s\n"
-			"\tOutput file name: %s\n"
-			"\tOutput directory: %s\n"
-			"\tIdentification: %s\n"
-			"\tSample Rate: %d\n"
-			"\tBlock size: %d samples\n"
-			"\tSegment duration: %d seconds\n"
-			"\tSegment size: %d samples\n"
-			"\tCalibration reference: %.1f db\n"
-			"\tCalibration time: %d\n"
-			"\tRecord period: %d segments\n"
-			"\tFile period: %d segments\n"
-			"\tMQTT: %s\n"
+	if (verbose_flag) {
+		config_print();
+		printf("\n"
+			"\tOutput file: %s\n"
 			"\tRun duration: %d seconds\n\n",
-			config_struct->input_device,
-			config_struct->input_file,
-			output_get_filename(),
-			config_struct->output_path,
-			config_struct->identification,
-			config_struct->sample_rate,
-			config_struct->block_size,
-			config_struct->segment_duration,
-			config_struct->segment_size,
-			config_struct->calibration_reference,
-			config_struct->calibration_time,
-			config_struct->record_period,
-			config_struct->file_period,
-			config_struct->mqtt_enable? "true" : "false",	
+			output_get_filepath(),
 			run_duration);
+	}
 
-	if (verbose_flag)
-		printf("Saving configuration in " CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME "\n");
-	config_save(config_struct, CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME);
+	//--------------------------------------------------------------------------
+	//	Operation
 
-	//----------------------------------------------------------------------
+	bool continuous = option_input_filename == NULL;
 
-	int continuous = option_input_filename == NULL;
+	output_open(continuous);
 
-	output_init(continuous);
-
-	int result = input_device_open(config_struct);
-	if (result != 0)
+	if (!input_device_open(config_struct))
 		exit(EXIT_FAILURE);
 
 	Timeweight *twfilter = timeweight_create();
@@ -371,7 +334,7 @@ int main (int argc, char *argv[])
 	if (verbose_flag)
 		printf("LAeq, LAFmin, LAE, LAFmax, LApeak\n");
 
-	while (run_duration == 0 || seconds < run_duration) {
+	while (running && (run_duration == 0 || seconds < run_duration)) {
 		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
 		if (lenght_read == 0)
 			break;
@@ -421,8 +384,15 @@ int main (int argc, char *argv[])
 			levels->segment_number = 0;
 		}
 	}
+	if (verbose_flag)
+		printf("\nTotal time: %d\n", seconds);
+
 	output_record(levels);
 //	output_file_close();
+
+	if (verbose_flag)
+		printf("Saving configuration in " CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME "\n");
+	config_save(CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME);
 
 	if (!continuous) {
 		audit_destroy(wa);
@@ -430,11 +400,11 @@ int main (int argc, char *argv[])
 		audit_destroy(wc);
 		audit_destroy(wd);
 	}
+
 	if (config_struct->mqtt_enable)
 		mqtt_end();
-	if (verbose_flag)
-		printf("\nTotal time: %d\n", seconds);
 	input_device_close();
+	output_close();
 	levels_destroy(levels);
 	timeweight_destroy(twfilter);
 	aweighting_destroy(afilter);
