@@ -32,7 +32,7 @@ bool mqtt_begin() {
     if ((rc = MQTTClient_create(&client,
         config_struct->mqtt_broker, config_struct->identification,
         MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS) {
-         printf("Failed to create MQTT client, return code %d\n", rc);
+         fprintf(stderr, "Failed to create MQTT client, return code %d\n", rc);
          return false;
     }
 
@@ -41,7 +41,7 @@ bool mqtt_begin() {
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
     if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        printf("Failed to connect MQTT, return code %d\n", rc);
+        fprintf(stderr, "Failed to connect MQTT, return code %d\n", rc);
         return false;
     }
     return true;
@@ -50,17 +50,18 @@ bool mqtt_begin() {
 #define TIMEOUT     10000L
 
 bool mqtt_publish(Levels *levels, int segment_number) {
-	char payload[200];
-
-	sprintf(payload, "{\"ts\": %ld, \"values\": "
+	char payload[120];
+    unsigned long long ts = (uint64_t)time(NULL) * 1000;
+	sprintf(payload, "{\"ts\": %lld, \"values\": "
 		"{\"LAeq\": %.1f, \"LAFmin\": %.1f, \"LAE\": %.1f, \"LAFmax\": %.1f, \"LApeak\": %.1f } }",
-        time(NULL) * 1000,
+        ts,
         levels->LAeq[segment_number],
         levels->LAFmin[segment_number],
         levels->LAE[segment_number],
         levels->LAFmax[segment_number],
         levels->LApeak[segment_number]);
 
+//    fprintf(stderr, "%s\n", payload);
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
     MQTTClient_deliveryToken token;
     pubmsg.payload = payload;
@@ -70,24 +71,23 @@ bool mqtt_publish(Levels *levels, int segment_number) {
     int rc;
     if ((rc = MQTTClient_publishMessage(client,
         config_struct->mqtt_topic, &pubmsg, &token)) != MQTTCLIENT_SUCCESS) {
-         printf("Failed to publish MQTT message, return code %d\n", rc);
+         fprintf(stderr, "Failed to publish MQTT message, return code %d\n", rc);
          return false;
     }
-
 /*
     printf("Waiting for up to %d seconds for publication of %s\n"
             "on topic %s for client with ClientID: %s\n",
             (int)(TIMEOUT/1000), payload, config_struct->mqtt_topic, config_struct->identification);
-*/
     rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
     printf("Message with delivery token %d delivered\n", token);
+*/
     return true;
 }
 
 bool mqtt_end() {
     int rc;
     if ((rc = MQTTClient_disconnect(client, 10000)) != MQTTCLIENT_SUCCESS)
-        printf("Failed to disconnect MQTT, return code %d\n", rc);
+        fprintf(stderr, "Failed to disconnect MQTT, return code %d\n", rc);
     MQTTClient_destroy(&client);
     return rc == MQTTCLIENT_SUCCESS;
 }
