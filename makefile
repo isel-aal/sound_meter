@@ -1,4 +1,4 @@
-CFLAGS = -g -Wall -Werror -pedantic \
+CFLAGS = -g -Wall -Werror -pedantic -save-temps=obj \
 	`pkg-config --cflags glib-2.0 libwave alsa jansson paho-mqtt3c`
 
 LIBS = `pkg-config --libs glib-2.0 libwave alsa jansson paho-mqtt3c` -lm
