@@ -127,8 +127,10 @@ void output_close()
 
 void output_file_close()
 {
-	if (strcmp(config_struct->output_format, ".json") == 0)
+	if (strcmp(config_struct->output_format, ".json") == 0) {
 		json_dumpf(output_json, output_fd, JSON_REAL_PRECISION(3));
+		json_decref(output_json);
+	}
 	if (output_fd != NULL)
 		fclose(output_fd);
 	output_fd = NULL;
@@ -269,7 +271,7 @@ static void output_file_open(char *filepath)
 		fprintf(stderr, "Output: error creating real_json ("__FILE__": %d)\n", __LINE__); \
 		return; \
 	} \
-	if (json_array_append(level_array_json, real_json) != 0) { \
+	if (json_array_append_new(level_array_json, real_json) != 0) { \
 		fprintf(stderr, "Output: error set " #level_array_json "[i] ("__FILE__": %d)\n", __LINE__); \
 		return; \
 	} \

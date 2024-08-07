@@ -313,7 +313,8 @@ int main (int argc, char *argv[])
 
 	//----------------------------------------------------------------------
 
-	printf("\nStarting sound level measuring...\n");
+	if (verbose_flag)
+		printf("\nStarting sound level measuring...\n");
 
 	Audit *wa = NULL;
 	Audit *wb = NULL;
@@ -388,7 +389,6 @@ int main (int argc, char *argv[])
 		printf("\nTotal time: %d\n", seconds);
 
 	output_record(levels);
-//	output_file_close();
 
 	if (verbose_flag)
 		printf("Saving configuration in " CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME "\n");

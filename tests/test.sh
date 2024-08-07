@@ -7,10 +7,11 @@ if [ -z $1 ]; then
 	exit 1;
 fi
 
-./sound_meter_ref -i $1 -o $1.ref
-../sound_meter -i $1 -o $1.out
-cmp $1.ref $1.out
+../build/sound_meter -i $1
+cmp data/$1.csv ./$1.ref
 
 if [ $? -ne 0 ]; then
 	exit 1;
 fi
+
+echo done

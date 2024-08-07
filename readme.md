@@ -16,7 +16,7 @@ O programa pode processar em tempo real som captado por microfone -- designado p
 | Identificação | XXXX_NNNN | -n \<id\> | | identification |
 | Placa de som  | default | -d \<name\> | | input_device |
 | Ficheiro de entrada | | -i \<filename\> | | |
-| Ficheiro de saída  | sound_meter | -o \<filename\> | | |
+| Ficheiro de saída  | | -o \<filename\> | | |
 | Diretoria para ficheiros de saída | data/ | | | output_path |
 | Formato de saída | CSV | -f CSV \| JSON | | output_format |
 | Ritmo de amostragem | 48000 | -r \<value\> | | sample_rate  |
