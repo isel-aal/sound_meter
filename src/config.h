@@ -72,7 +72,7 @@ typedef struct config
 	const char *input_device;	// identificador da card de som
 	const char *input_file;		// ficheiro WAVE com som de entrada
 	const char *output_path;	// diretoria onde são depositados os ficheiros criados
-	const char *output_filename;	// npme do ficheiro de saída
+	const char *output_filename;	// nome do ficheiro de saída
 	const char *output_format;	// formato dos dados de saída (extensão do ficheiro de saída)
 
 	unsigned sample_rate;		// ritmo de amostragem
