@@ -1,36 +1,42 @@
 ﻿## Configuração
 
-O programa de medição de níveis sonoros é configurável em compilação e em execução por meio de:
-* opções na linha de comando;
-* variáveis de ambiente;
-* ficheiro de configuração.
+O programa de medição de níveis sonoros é configurável em compilação
+e em execução por meio de opções na linha de comando ou ficheiro de configuração.
 
-A configuração por opção na linha de comando prevalece sobre a configuração por variável de ambiente ou por ficheiro ficheiro.
+A configuração por opção na linha de comando prevalece sobre a configuração em ficheiro.
 
-O programa pode processar em tempo real som captado por microfone -- designado por **modo contínuo** -- ou processar som gravado em ficheiro no formato WAVE -- designado por **modo discreto**.
+O ficheiro de configuração pode ser definidos na linha de comando através da opção -g.
+ou pela variável de ambiente SOUND_METER_CONFIG_FILENAME.
+No caso de omissão de ambos é criado um ficheiro de configuração na diretoria corrente,
+com o nome ``sound_meter_config.json``.
 
-| Parâmetro | Valor por omissão (*default*) | Opção de linha de comando | Variável de ambiente | Ficheiro de configuração |
-| --------- | --------- | -------------- | ------------- | ----------|
-| Ficheiro de configuração | sound_meter_config.json | -g \<filename\> | SOUND_METER_CONFIG_FILENAME | |
-| Local do ficheiro de configuração | ./ | | SOUND_METER_CONFIG_FILEPATH | |
-| Identificação | XXXX_NNNN | -n \<id\> | | identification |
-| Placa de som  | default | -d \<name\> | | input_device |
-| Ficheiro de entrada | | -i \<filename\> | | |
-| Ficheiro de saída  | | -o \<filename\> | | |
-| Diretoria para ficheiros de saída | data/ | | | output_path |
-| Formato de saída | CSV | -f CSV \| JSON | | output_format |
-| Ritmo de amostragem | 48000 | -r \<value\> | | sample_rate  |
-| Duração do processamento | | -t \<seconds\> | | |
-| Periodo de calibração | | -c \<seconds\> | | |
-| Calibração de referência | 94.0 db | | | calibration_reference |
-| Duração do segmento | 1 | | | segment_duration |
-| Duração do bloco | 1024 | | | block_size |
-| Período de registo | 60 | | | record_period |
-| Período de ficheiro | 60 * 60 | | | file_period |
-| MQTT | false | | | mqtt_enable |
-| MQTT broker | tcp://demo.thingsboard.io:1883 | | | mqtt_broker |
-| MQTT topic | v1/devices/me/telemetry | | | mqtt_topic |
-| MQTT QOS | 1 | | | mqtt_qos |
+No caso do nome do ficheiro de configuração ser um nome relativo (não começar por */* nem por *.*)
+a diretoria do ficheiro de configuração pode ser definida pela variável de ambiente ``SOUND_METER_CONFIG_PATH``.
+Se esta variável não for definida é considerada a diretoria corrente.
+
+O programa pode processar em tempo real som captado por microfone -- designado por **modo contínuo** --
+ou processar som gravado em ficheiro no formato WAVE -- designado por **modo discreto**.
+
+| Parâmetro | Valor por omissão (*default*) | Opção de linha de comando | Ficheiro de configuração |
+| --------- | --------- | -------------- | ----------|
+| Identificação | XXXX_NNNN | -n \<id\> | identification |
+| Placa de som  | default | -d \<name\> | input_device |
+| Ficheiro de entrada | | -i \<filename\> | |
+| Ficheiro de saída  | | -o \<filename\> | |
+| Diretoria para ficheiros de saída | data/ | | output_path |
+| Formato de saída | CSV | -f CSV \| JSON | output_format |
+| Ritmo de amostragem | 48000 | -r \<value\> | sample_rate  |
+| Duração do processamento | | -t \<seconds\> | |
+| Periodo de calibração | | -c \<seconds\> | |
+| Calibração de referência | 94.0 db | | calibration_reference |
+| Duração do segmento | 1 | | segment_duration |
+| Duração do bloco | 1024 | | block_size |
+| Período de registo | 60 | | record_period |
+| Período de ficheiro | 60 * 60 | | file_period |
+| MQTT | false | | mqtt_enable |
+| MQTT broker | tcp://demo.thingsboard.io:1883 | | mqtt_broker |
+| MQTT topic | v1/devices/me/telemetry | | mqtt_topic |
+| MQTT QOS | 1 | | mqtt_qos |
 
 
 ### Definição dos parâmetros de configuração
