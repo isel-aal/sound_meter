@@ -12,7 +12,8 @@ SOURCES = \
 	src/filter.c \
 	src/in_out.c \
 	src/sbuffer.c \
-	src/mqtt.c
+	src/mqtt.c \
+	src/server.c
 
 OBJECTS = $(SOURCES:%.c=build/%.o)
 

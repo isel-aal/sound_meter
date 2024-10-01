@@ -40,7 +40,8 @@ static struct config config = {
 	.mqtt_broker = CONFIG_MQTT_BROKER,
 	.mqtt_topic = CONFIG_MQTT_TOPIC,
 	.mqtt_qos = CONFIG_MQTT_QOS,
-	.mqtt_device_credential = CONFIG_MQTT_DEVICE_CREDENTIAL
+	.mqtt_device_credential = CONFIG_MQTT_DEVICE_CREDENTIAL,
+	.server_socket = CONFIG_SERVER_SOCKET,
 };
 
 void config_print() 
@@ -65,7 +66,8 @@ void config_print()
 		"\tMQTT Broker: %s\n"
 		"\tMQTT Topic: %s\n"
 		"\tMQTT qos: %d\n"
-		"\tMQTT device credential: %s\n",
+		"\tMQTT device credential: %s\n"
+		"\tServer socket: %s\n",
 		config_struct->identification,
 		config_struct->input_device,
 		config_struct->input_file,
@@ -81,11 +83,13 @@ void config_print()
 		config_struct->file_period,
 		config_struct->calibration_time,
 		config_struct->calibration_reference,
-		config_struct->mqtt_enable? "true" : "false",	
+		config_struct->mqtt_enable? "enabled" : "disabled",	
 		config_struct->mqtt_broker,
 		config_struct->mqtt_topic,
 		config_struct->mqtt_qos,
-		config_struct->mqtt_device_credential);
+		config_struct->mqtt_device_credential,
+		config_struct->server_socket
+		);
 }
 
 Config *config_struct = &config;
@@ -149,6 +153,7 @@ static void config_update_from_json(struct config *config, json_t *config_json)
 	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_topic);
 	CONFIG_UPDATE_FROM_JSON_INTEGER(mqtt_qos);
 	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_device_credential);
+	CONFIG_UPDATE_FROM_JSON_STRING(server_socket);
 }
 
 #define	CONFIG_UPDATE_TO_JSON_STRING(config_struct, config_json, key) \
@@ -266,7 +271,7 @@ static void config_update_to_json(struct config *config, json_t *config_json)
 	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_topic);
 	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, mqtt_qos);
 	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_device_credential);
-
+	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, server_socket);
 }
 
 void config_destroy()

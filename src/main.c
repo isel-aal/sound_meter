@@ -31,8 +31,9 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "config.h"
 #include "in_out.h"
 #include "mqtt.h"
+#include "server.h"
 
-static bool running = true;
+bool running = true;
 
 static void int_handler(int unused) {
 	running = false;
@@ -241,8 +242,8 @@ int main (int argc, char *argv[])
 			run_duration);
 	}
 
-	//--------------------------------------------------------------------------
-	//	Operation
+	//----------------------------------------------------------------------
+	//	Inicializações
 
 	bool continuous = option_input_filename == NULL;
 
@@ -268,7 +269,8 @@ int main (int argc, char *argv[])
 
 	Levels *levels = levels_create();
 
-	//-------------------------------CALIBRAÇÃO---------------------------------
+	//----------------------------------------------------------------------
+	//	Calibração
 
 	float calibration_delta = 0;
 
@@ -312,6 +314,8 @@ int main (int argc, char *argv[])
 	}
 
 	//----------------------------------------------------------------------
+	//	Operação
+	server_init();
 
 	if (verbose_flag)
 		printf("\nStarting sound level measuring...\n");
@@ -367,10 +371,18 @@ int main (int argc, char *argv[])
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
 			process_segment(levels, ring_d, calibration_delta);
 			seconds += config_struct->segment_duration;
+		
+			int segment_index = levels->segment_number - 1;
+
+			server_send((uint64_t)time(NULL), levels->LAeq[segment_index],
+					levels->LAFmin[segment_index],
+					levels->LAE[segment_index],
+					levels->LAFmax[segment_index],
+					levels->LApeak[segment_index]);
+
 			if (config_struct->mqtt_enable)
 				mqtt_publish(levels, levels->segment_number - 1);
 			if (verbose_flag) {
-				int segment_index = levels->segment_number - 1;
 				printf("\r%6.1f%6.1f%6.1f%6.1f%6.1f\n",
 					levels->LAeq[segment_index],
 					levels->LAFmin[segment_index],
@@ -400,7 +412,7 @@ int main (int argc, char *argv[])
 		audit_destroy(wc);
 		audit_destroy(wd);
 	}
-
+	server_end();
 	if (config_struct->mqtt_enable)
 		mqtt_end();
 	input_device_close();

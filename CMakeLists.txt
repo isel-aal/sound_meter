@@ -17,6 +17,7 @@ add_executable(sound_meter
 	src/sbuffer.c
 	src/mqtt.h
 	src/mqtt.c
+	src/server.c
 	)
 
 	find_package(PkgConfig REQUIRED)

@@ -66,6 +66,8 @@ limitations under the License.
 
 #define	CONFIG_MQTT_PUBLISH_PERIOD	10	//	Tempo de publicação em número de segmentos
 
+#define CONFIG_SERVER_SOCKET	"sound_meter_server_socket"
+
 typedef struct config
 {
 	const char *identification;	// identificador da estação
@@ -93,6 +95,7 @@ typedef struct config
 	int mqtt_qos;
 	const char *mqtt_device_credential;
 	// int mqtt_publish_period;
+	const char *server_socket;
 } Config;
 
 struct config *config_load(const char *config_filename);
