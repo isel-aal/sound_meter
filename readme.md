@@ -1,21 +1,16 @@
 ﻿## Configuração
 
-O programa de medição de níveis sonoros é configurável em compilação
-e em execução por meio de opções na linha de comando ou ficheiro de configuração.
+O programa de medição de níveis sonoros é configurável em compilação e em execução, por meio de opções na linha de comando ou de ficheiro de configuração.
 
 A configuração por opção na linha de comando prevalece sobre a configuração em ficheiro.
 
-O ficheiro de configuração pode ser definidos na linha de comando através da opção -g.
-ou pela variável de ambiente SOUND_METER_CONFIG_FILENAME.
-No caso de omissão de ambos é criado um ficheiro de configuração na diretoria corrente,
-com o nome ``sound_meter_config.json``.
+O ficheiro de configuração pode ser definidos na linha de comando através da opção **-g** ou pela variável de ambiente **SOUND_METER_CONFIG_FILENAME**. Em caso de omissão de ambos é criado um ficheiro de configuração na diretoria corrente, com o nome ``sound_meter_config.json``.
 
-No caso do nome do ficheiro de configuração ser um nome relativo (não começar por */* nem por *.*)
-a diretoria do ficheiro de configuração pode ser definida pela variável de ambiente ``SOUND_METER_CONFIG_PATH``.
-Se esta variável não for definida é considerada a diretoria corrente.
+Se o nome do ficheiro de configuração for um nome relativo (não começar por **/** nem por **.**), a diretoria do ficheiro de configuração é a diretoria corrente ou a dietoria definida pela variável de ambiente **SOUND_METER_CONFIG_PATH**.
 
-O programa pode processar em tempo real som captado por microfone -- designado por **modo contínuo** --
-ou processar som gravado em ficheiro no formato WAVE -- designado por **modo discreto**.
+O programa pode processar em tempo real som captado por microfone ou processar som gravado em ficheiro no formato WAVE indicado pela opçaõ **-i**.
+
+### Parâmetros de configuração
 
 | Parâmetro | Valor por omissão (*default*) | Opção de linha de comando | Ficheiro de configuração |
 | --------- | --------- | -------------- | ----------|
@@ -24,6 +19,7 @@ ou processar som gravado em ficheiro no formato WAVE -- designado por **modo dis
 | Ficheiro de entrada | | -i \<filename\> | |
 | Ficheiro de saída  | | -o \<filename\> | |
 | Diretoria para ficheiros de saída | data/ | | output_path |
+| Ficheiros de saída | sound_meter_ | | output_filename |
 | Formato de saída | CSV | -f CSV \| JSON | output_format |
 | Ritmo de amostragem | 48000 | -r \<value\> | sample_rate  |
 | Duração do processamento | | -t \<seconds\> | |
@@ -40,11 +36,6 @@ ou processar som gravado em ficheiro no formato WAVE -- designado por **modo dis
 
 
 ### Definição dos parâmetros de configuração
-Ficheiro de configuração
-: Ficheiro com a definição dos parâmetros de configuração em formato JSON.
- 
- Local do ficheiro de configuração
- : Local do sistema de ficheiros onde se encontra o ficheiro de configuração.
  
 Identificação
 : Identificação da estação.
@@ -121,45 +112,70 @@ Na ausência desta variável de ambiênte, considera-se a diretoria corrente ond
 
 ## Processamento
 
-O cálculo dos níveis sonoros é realizado em intervalos de tempo designados por **segmento**. Esse cálculo assenta em processamentos parciais, realizados sobre blocos de amostras, cuja dimensão é uma potência de 2.
+O cálculo dos níveis sonoros é realizado em intervalos de tempo designados por **segmento**.
+Também são realizados processamentos parciais sobre blocos de amostras, cuja dimensão é uma potência de 2.
 
 A duração do segmento e a dimensão do bloco são configuráveis no ficheiro de configuração, com as etiquetas ``segment_duration`` e ``block_size``, respetivamente.
 
-Um segmento não engloba necessariamente um número inteiro de blocos. Pode existir um bloco com uma primeira parte de amostras pertencente a um segmento e segunda parte de amostras pertencente ao bloco seguinte.
+Um segmento não engloba necessariamente um número inteiro de blocos. Pode existir um bloco com uma primeira parte de amostras pertencente a um segmento e segunda parte de amostras pertencente ao segmento seguinte.
 
 ## Instalação
 
 ### Instalação no Raspberrypi
 Utilizando a placa de som **Respeaker**
-À data atual 11-1-2023 o *device driver* da placa Respeaker só funciona até à versão 5.10 do Linux. Deve-se instalar a versão lagacy do Raspi OS.
+
 Para instalar o *device driver*, seguir estas instruções: https://github.com/respeaker/seeed-voicecard
 ou estas: https://wiki.seeedstudio.com/ReSpeaker_4-Mic_Linear_Array_Kit_for_Raspberry_Pi
 
-### Instalação da aplicação sound_meter
-
-Primeiro instalar a biblioteca ***libwave***.
+### Instalação de dependências
 ```
-$ sudo apt install libglib2.0-dev
+$ sudo apt install libglib2.0-dev libjansson-dev libasound2-dev
+```
+#### ***libwave***
+```
 $ git clone https://github.com/isel-aal/libwave.git
 $ cd libwave
 $ make
 $ sudo ./install.sh
 ```
-A variável de ambiente ``PKG_CONFIG_PATH`` deve ser definida com o caminho para a diretoria onde a ``libwave`` tiver sido instalada. O *script* ``install.sh`` instala em ``/usr/local/lib``.
+ O *script* ``install.sh`` instala a biblioteca em ``/usr/local/lib``.
+ 
+Definir o caminho para o local onde a biblioteca foi instalada.
+```
+$ sudo ldconfig /usr/local/lib
+```
+Em alternativa pode usar a variável de ambiente ``PKG_CONFIG_PATH``.
 ```
 $ export PKG_CONFIG_PATH=/usr/local/lib
 ```
-Gerar a aplicação ***souns_meter***
+#### ***Paho MQTT C Client Library***
 ```
-$ sudo apt install libasound-dev libjansson-dev
+$ git clone git clone https://github.com/eclipse/paho.mqtt.c
+$ mkdir build; cd build
+$ cmake ../paho.mqtt.c
+$ make
+$ sudo make install
+```
+Para que esta biblioteca seja acessível via ``pkg-config`` copiar o seguinte conteúdo para o ficheiro ``/usr/local/lib/pkgconfig/paho-mqtt.c``.
+```
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: Paho mqtt3c
+Description: Paho MQTT client library
+Version: 1.00
+Libs: -L${libdir} -lpaho-mqtt3c
+Cflags: -I${includedir}
+```
+### Aplicação sound_meter
+```
 $ git clone https://github.com/isel-aal/sound_meter.git
 $ cd sound_meter
 $ make
 ```
-Definir o caminho para a biblioteca *libwave*.
-```
-$ sudo ldconfig /usr/local/lib
-```
+
 ### Configuração do servidor Web
 Instalar:
 ```

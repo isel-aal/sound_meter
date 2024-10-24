@@ -1,0 +1,21 @@
+{
+        "identification": "XXXX_NNNN",
+        "input_device": "default",
+        "output_path": "data/",
+        "output_filename": "sound_meter",
+        "output_format": ".csv",
+        "sample_rate": 48000,
+        "bits_per_sample": 16,
+        "block_size": 1024,
+        "segment_duration": 1,
+        "record_period": 60,
+        "file_period": 3600,
+        "laeq_time": 86400,
+        "calibration_reference": 94.0,
+        "mqtt_enable": true,
+        "mqtt_broker": "tcp://demo.thingsboard.io:1883",
+        "mqtt_topic": "v1/devices/me/telemetry",
+        "mqtt_qos": 1,
+        "mqtt_device_credential": "SOUND_METER_#2_TOKEN",
+        "server_socket": "sound_meter_server_socket"
+}
