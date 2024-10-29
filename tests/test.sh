@@ -1,5 +1,7 @@
 #!/bin/bash
 
+IFS=$'\n'
+
 mkdir -p data
 ../build/sound_meter -i TestNoise.wav --verbose
 cmp data/TestNoise.wav.csv ./TestNoise.wav.csv.ref

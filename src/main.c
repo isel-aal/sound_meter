@@ -53,8 +53,8 @@ static void help(char *prog_name)
 		"\t-f, --output_format <csv | json>\n"
 		"\t-r, --sample_rate <rate>\n"
 		"\t-n, --identification <name>\n"
-		"\t-t, --duration <time>\n"
-		"\t-c, --calibrate [<time>]\n"
+		"\t-t, --duration <seconds>\n"
+		"\t-c, --calibrate <seconds>\n"
 		"\t-g, --config <filename>\n",
 		prog_name);
 }
@@ -143,9 +143,7 @@ int main (int argc, char *argv[])
 			break;
 		}
 		case ':':
-			if (optopt == 'c')
-				option_calibration_time = CONFIG_CALIBRATION_TIME;
-			else {
+			if (optopt == 'c') {
 				fprintf(stderr, "Error in option -%c argument\n", optopt);
 				error_in_options = true;
 			}
@@ -208,7 +206,7 @@ int main (int argc, char *argv[])
 
 	free(config_pathname);
 
-	//	As opções de linha de comando prevalecem sobre o ficheiro de configuração
+	// As opções de linha de comando prevalecem sobre o ficheiro de configuração
 
 	if (option_device_filename != NULL)
 		config_struct->input_device = option_device_filename;
@@ -231,7 +229,7 @@ int main (int argc, char *argv[])
 
 	output_set_filename(option_output_filename, option_input_filename);
 
-	config_struct->segment_size = config_struct->segment_duration * config_struct->sample_rate;
+	config_struct->segment_size = config_struct->segment_duration * config_struct->sample_rate / 1000;
 
 	if (verbose_flag) {
 		config_print();
@@ -255,12 +253,11 @@ int main (int argc, char *argv[])
 	Timeweight *twfilter = timeweight_create();
 	Afilter *afilter = aweighting_create(3);
 
-	unsigned seconds = 0;	// Time elapsed based in segment duration
-
 	int16_t *samples_int16 = malloc(CONFIG_BLOCK_SIZE * sizeof *samples_int16);
 	float *block_a = malloc(CONFIG_BLOCK_SIZE * sizeof *block_a);
 	float *block_c = malloc(CONFIG_BLOCK_SIZE * sizeof *block_c);
 
+	// Os buffers de segmento têm capacidade para um segmento e uma dimensão múltipla de um bloco
 	unsigned segment_buffer_size = (((config_struct->segment_size + CONFIG_BLOCK_SIZE - 1)
 								/ CONFIG_BLOCK_SIZE) + 1)
 								* CONFIG_BLOCK_SIZE;
@@ -272,18 +269,19 @@ int main (int argc, char *argv[])
 	//----------------------------------------------------------------------
 	//	Calibração
 
-	float calibration_delta = 0;
-
 	if (config_struct->calibration_time > 0) {
-		float sum = 0;
+		unsigned milisecs = 0;
+		unsigned calibration_milisecs = (config_struct->calibration_time + CONFIG_CALIBRATION_GUARD) * 1000;
+		float average_sum = 0;
+		unsigned average_n = 0;
 		printf("\nCalibrating for %d seconds\n",config_struct->calibration_time);
-		while (seconds < config_struct->calibration_time + CONFIG_CALIBRATION_GUARD) {
+		while (milisecs < calibration_milisecs) {
 			size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
 			if (lenght_read == 0)
 				break;
 			samples_int16_to_float(samples_int16, block_a, lenght_read);
 			float *block_ring_b = sbuffer_write_ptr(ring_b);
-			assert(lenght_read <= sbuffer_write_size(ring_b));
+			assert(lenght_read <= sbuffer_write_size(ring_b));	// Há sempre um bloco disponível
 
 			aweighting_filtering(afilter, block_a, block_ring_b, lenght_read);
 			sbuffer_write_produces(ring_b, lenght_read);
@@ -297,20 +295,26 @@ int main (int argc, char *argv[])
 			sbuffer_write_produces(ring_d, lenght_read);
 
 			if (sbuffer_size(ring_d) >= config_struct->segment_size) {
-				process_segment(levels, ring_d, calibration_delta);
-				if (seconds >= CONFIG_CALIBRATION_GUARD)
-					sum += levels->LAE[0];
+				process_segment(levels, ring_d, 0);
+				if (milisecs < CONFIG_CALIBRATION_GUARD * 1000) {
+					if (verbose_flag)
+						puts("-"); 
+				}
+				else {
+					average_sum += levels->LAE[0];
+					average_n++;
+					if (verbose_flag)
+						printf("%d\n", (calibration_milisecs - milisecs) / 1000); 
+				}
 				levels->segment_number = 0;
-				seconds += config_struct->segment_duration;
-				if (verbose_flag)
-					putchar('.');
+				milisecs += config_struct->segment_duration;
 			}
 		}
-		calibration_delta = config_struct->calibration_reference -
-			linear_to_decibel(sum / config_struct->calibration_time);
+		config_struct->calibration_delta = config_struct->calibration_reference -
+			linear_to_decibel(average_sum / average_n);
 		
 		if (verbose_flag)
-			printf("\nCalibration delta: %.1f\n", calibration_delta);
+			printf("\nNew calibration delta: %.1f\n", config_struct->calibration_delta);
 	}
 
 	//----------------------------------------------------------------------
@@ -339,7 +343,9 @@ int main (int argc, char *argv[])
 	if (verbose_flag)
 		printf("LAeq, LAFmin, LAE, LAFmax, LApeak\n");
 
-	while (running && (run_duration == 0 || seconds < run_duration)) {
+	unsigned time_elapsed = 0;	// Tempo que passou baseado na duração do segmento (milisegundos)
+	run_duration *= 1000; 		// Coverter para milisegundos
+	while (running && (run_duration == 0 || time_elapsed < run_duration)) {
 		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
 		if (lenght_read == 0)
 			break;
@@ -351,7 +357,7 @@ int main (int argc, char *argv[])
 
 		sbuffer_write_produces(ring_b, lenght_read);
 
-		process_segment_lapeak(levels, ring_b, calibration_delta);
+		process_segment_lapeak(levels, ring_b, config_struct->calibration_delta);
 
 		process_block_square(block_ring_b, block_c, lenght_read);
 
@@ -369,8 +375,8 @@ int main (int argc, char *argv[])
 		}
 
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
-			process_segment(levels, ring_d, calibration_delta);
-			seconds += config_struct->segment_duration;
+			process_segment(levels, ring_d, config_struct->calibration_delta);
+			time_elapsed += config_struct->segment_duration;
 		
 			int segment_index = levels->segment_number - 1;
 
@@ -397,8 +403,9 @@ int main (int argc, char *argv[])
 			levels->segment_number = 0;
 		}
 	}
+	running = false;
 	if (verbose_flag)
-		printf("\nTotal time: %d\n", seconds);
+		printf("\nTotal time: %d seconds\n", time_elapsed / 1000);
 
 	output_record(levels);
 

@@ -12,4 +12,6 @@ docs/_template
 *.wav
 *.csv
 *.pdf
+!TestNoise.wav
+!TestNoise.wav.csv.ref
 

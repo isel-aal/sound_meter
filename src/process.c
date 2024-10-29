@@ -164,7 +164,7 @@ void process_segment(Levels *levels, Sbuffer *ring, float calibration_delta)
 	for (unsigned i = 1; i < size; i++) {
 //		assert(samples[i] >= -1.0 && samples[i] <= +1.0);
 		float sample = samples[i];
-		sample_sum += samples[i];
+		sample_sum += sample;
 		if (sample_max < sample)
 			sample_max = sample;
 		if (sample_min > sample)
@@ -177,7 +177,7 @@ void process_segment(Levels *levels, Sbuffer *ring, float calibration_delta)
 		for (unsigned i = 0; i < size; i++) {
 // 				assert(samples[i] >= -1.0 && samples[i] <= +1.0);
 			float sample = samples[i];
-			sample_sum += samples[i];
+			sample_sum += sample;
 			if (sample_max < sample)
 				sample_max = sample;
 			if (sample_min > sample)

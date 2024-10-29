@@ -56,12 +56,13 @@ void config_print()
 		"\tSample Rate: %d\n"
 		"\tBits per sample: %d\n"
 		"\tBlock size: %d samples\n"
-		"\tSegment duration: %d seconds\n"
+		"\tSegment duration: %d miliseconds\n"
 		"\tSegment size: %d samples\n"
 		"\tRecord period: %d segments\n"
 		"\tFile period: %d segments\n"
 		"\tCalibration time: %d\n"
-		"\tCalibration reference: %.1f db\n"
+		"\tCalibration reference: %.1f dba\n"
+		"\tCalibration delta: %.1f dba\n"
 		"\tMQTT: %s\n"
 		"\tMQTT Broker: %s\n"
 		"\tMQTT Topic: %s\n"
@@ -83,6 +84,7 @@ void config_print()
 		config_struct->file_period,
 		config_struct->calibration_time,
 		config_struct->calibration_reference,
+		config_struct->calibration_delta,
 		config_struct->mqtt_enable? "enabled" : "disabled",	
 		config_struct->mqtt_broker,
 		config_struct->mqtt_topic,
@@ -147,6 +149,7 @@ static void config_update_from_json(struct config *config, json_t *config_json)
 	CONFIG_UPDATE_FROM_JSON_INTEGER(laeq_time);
 
 	CONFIG_UPDATE_FROM_JSON_REAL(calibration_reference);
+	CONFIG_UPDATE_FROM_JSON_REAL(calibration_delta);
 
 	CONFIG_UPDATE_FROM_JSON_BOOL(mqtt_enable);
 	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_broker);
@@ -265,6 +268,7 @@ static void config_update_to_json(struct config *config, json_t *config_json)
 	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, laeq_time);
 
 	CONFIG_UPDATE_TO_JSON_REAL(config, config_json, calibration_reference);
+	CONFIG_UPDATE_TO_JSON_REAL(config, config_json, calibration_delta);
 
 	CONFIG_UPDATE_TO_JSON_BOOL(config, config_json, mqtt_enable);
 	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_broker);
