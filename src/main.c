@@ -241,14 +241,7 @@ int main (int argc, char *argv[])
 	}
 
 	//----------------------------------------------------------------------
-	//	Inicializações
-
-	bool continuous = option_input_filename == NULL;
-
-	output_open(continuous);
-
-	if (!input_device_open(config_struct))
-		exit(EXIT_FAILURE);
+	//	Inicializações 
 
 	Timeweight *twfilter = timeweight_create();
 	Afilter *afilter = aweighting_create(3);
@@ -270,6 +263,8 @@ int main (int argc, char *argv[])
 	//	Calibração
 
 	if (config_struct->calibration_time > 0) {
+		if (!input_device_open(config_struct))
+			exit(EXIT_FAILURE);
 		unsigned milisecs = 0;
 		unsigned calibration_milisecs = (config_struct->calibration_time + CONFIG_CALIBRATION_GUARD) * 1000;
 		float average_sum = 0;
@@ -312,7 +307,9 @@ int main (int argc, char *argv[])
 		}
 		config_struct->calibration_delta = config_struct->calibration_reference -
 			linear_to_decibel(average_sum / average_n);
-		
+
+		input_device_close();
+
 		if (verbose_flag)
 			printf("\nNew calibration delta: %.1f\n", config_struct->calibration_delta);
 	}
@@ -320,6 +317,16 @@ int main (int argc, char *argv[])
 	//----------------------------------------------------------------------
 	//	Operação
 	server_init();
+
+	if (config_struct->mqtt_enable)
+		mqtt_begin();
+
+	bool continuous = option_input_filename == NULL;
+
+	output_open(continuous);
+
+	if (!input_device_open(config_struct))
+		exit(EXIT_FAILURE);
 
 	if (verbose_flag)
 		printf("\nStarting sound level measuring...\n");
@@ -335,8 +342,6 @@ int main (int argc, char *argv[])
 		wc = audit_create("c");
 		wd = audit_create("d");
 	}
-	if (config_struct->mqtt_enable)
-		mqtt_begin();
 
 	lae_average_create(config_struct->laeq_time);
 
@@ -344,7 +349,7 @@ int main (int argc, char *argv[])
 		printf("LAeq, LAFmin, LAE, LAFmax, LApeak\n");
 
 	unsigned time_elapsed = 0;	// Tempo que passou baseado na duração do segmento (milisegundos)
-	run_duration *= 1000; 		// Coverter para milisegundos
+	run_duration *= 1000; 		// Converter para milisegundos
 	while (running && (run_duration == 0 || time_elapsed < run_duration)) {
 		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
 		if (lenght_read == 0)
