@@ -304,7 +304,7 @@ void output_record(Levels *levels)
 	fsync(fileno(output_fd));
 	if (output_time >= config_struct->file_period) { // altura de mudança de ficheiro
 		output_file_close();
-		output_new_filename(config_struct->segment_duration * output_time);
+		output_new_filename((config_struct->segment_duration * output_time) / 1000);
 		output_file_open(output_filepath);
 		output_time = 0;
 	}
