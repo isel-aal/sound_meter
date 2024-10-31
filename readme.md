@@ -23,9 +23,10 @@ O programa pode processar em tempo real som captado por microfone ou processar s
 | Formato de saída | CSV | -f CSV \| JSON | output_format |
 | Ritmo de amostragem | 48000 | -r \<value\> | sample_rate  |
 | Duração do processamento | | -t \<seconds\> | |
-| Periodo de calibração | | -c \<seconds\> | |
-| Calibração de referência | 94.0 db | | calibration_reference |
-| Duração do segmento | 1 | | segment_duration |
+| Periodo de calibração |  | -c \<seconds\> | |
+| Calibração de referência | 94.0 dba | | calibration_reference |
+| Diferença de calibração |0 dba | | calibration_delta |
+| Duração do segmento | 1000 | | segment_duration |
 | Duração do bloco | 1024 | | block_size |
 | Período de registo | 60 | | record_period |
 | Período de ficheiro | 60 * 60 | | file_period |
@@ -73,8 +74,11 @@ Período de calibração
 Calibração de referência
 : Valor de calibração de referência (em dba).
 
+Diferença de Calibração
+: Diferença entre o nível calculado e o nível de referência dado por **Calibração de referência**.
+
 Duração do segmento
-: Duração do segmento em segundos.
+: Duração do segmento em milisegundos.
 
 Dimensão do bloco
 : Dimensão do bloco em número de amostras.
@@ -83,7 +87,7 @@ Período de registo
 : Período de registo em ficheiro dos níveis calculados. Período definido em número de segmentos.
 
 Período de ficheiro
-: Período de criação de novo ficheiro de registo em número de segmentos. Deve ser um múltiplo de **Período de registo**.
+: Período de criação de novo ficheiro de registo em número de segmentos. Deve ser um múltiplo de Período de registo.
 
 Memória de cálculo de LAeq
 : Duração da memória de cálculo de LAeq em número de segmentos.
@@ -121,12 +125,6 @@ Um segmento não engloba necessariamente um número inteiro de blocos. Pode exis
 
 ## Instalação
 
-### Instalação no Raspberrypi
-Utilizando a placa de som **Respeaker**
-
-Para instalar o *device driver*, seguir estas instruções: https://github.com/respeaker/seeed-voicecard
-ou estas: https://wiki.seeedstudio.com/ReSpeaker_4-Mic_Linear_Array_Kit_for_Raspberry_Pi
-
 ### Instalação de dependências
 ```
 $ sudo apt install libglib2.0-dev libjansson-dev libasound2-dev
@@ -150,13 +148,13 @@ $ export PKG_CONFIG_PATH=/usr/local/lib
 ```
 #### ***Paho MQTT C Client Library***
 ```
-$ git clone git clone https://github.com/eclipse/paho.mqtt.c
+$ git clone https://github.com/eclipse/paho.mqtt.c
 $ mkdir build; cd build
 $ cmake ../paho.mqtt.c
 $ make
 $ sudo make install
 ```
-Para que esta biblioteca seja acessível via ``pkg-config`` copiar o seguinte conteúdo para o ficheiro ``/usr/local/lib/pkgconfig/paho-mqtt.c``.
+Para que esta biblioteca seja acessível via ``pkg-config`` copiar o seguinte conteúdo para o ficheiro ``/usr/local/lib/pkgconfig/paho-mqtt3c.pc``.
 ```
 prefix=/usr/local
 exec_prefix=${prefix}
@@ -175,17 +173,64 @@ $ git clone https://github.com/isel-aal/sound_meter.git
 $ cd sound_meter
 $ make
 ```
+### Instalação no Raspberrypi
+#### Placa de som **Respeaker**
 
-### Configuração do servidor Web
+À medida que o kernel evolui é necessário readaptar o driver.
+O repositório abaixo tem vindo a ser atualizado até ao presenta (outubro 2024).
+https://github.com/HinTak/seeed-voicecard.git
+
+Começar por clonar o repositório:
+```
+$ git clone https://github.com/HinTak/seeed-voicecard.git
+```
+Verificar a versão de *kernel* instalado:
+```
+$ uname -r
+6.6.51+rpt-rpi-v8
+```
+Comutar para o *branch* adequado:
+```
+$ git checkout -b v6.6 origin/v6.6
+```
+Compilar e instalar o *driver*:
+```
+$ sudo ./install_arm64.sh
+$ sudo reboot
+```
+Para verificar se o *driver* está instalado:
+```
+$ arecord -L
+```
+```
+hw:CARD=seeed2micvoicec,DEV=0
+    seeed-2mic-voicecard, 3f203000.i2s-wm8960-hifi wm8960-hifi-0
+    Direct hardware device without any conversions
+plughw:CARD=seeed2micvoicec,DEV=0
+    seeed-2mic-voicecard, 3f203000.i2s-wm8960-hifi wm8960-hifi-0
+    Hardware device with all software conversions
+sysdefault:CARD=seeed2micvoicec
+    seeed-2mic-voicecard, 3f203000.i2s-wm8960-hifi wm8960-hifi-0
+    Default Audio Device
+dsnoop:CARD=seeed2micvoicec,DEV=0
+    seeed-2mic-voicecard, 3f203000.i2s-wm8960-hifi wm8960-hifi-0
+```
+
+Fontes de informação sobre esta placa:
+https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT_Raspberry/
+
+https://github.com/respeaker/seeed-voicecard
+
+#### Configuração do servidor Web
 Instalar:
 ```
-$ sudo apt nginx
+$ sudo apt install nginx
 ```
 Ficheiro de configuração: ``/etc/nginx/sites-available/default``.
 Para se ter acesso através do Browser, aos ficheiros produzidos, acrescentar nesse ficheiro:
 ```
-location /data/ {
-    root /home/pi/sound_meter/;
+location /data {
+    root /home/pi/sound_meter;
     autoindex on;
 }
 ```
@@ -193,7 +238,10 @@ O caminho para a diretoria onde são depositados deve ser ajustados conforme a c
 
 Neste caso o conteúdo da diretoria ``/home/pi/sound_meter/data`` será mostrado e o seu conteúdo pode ser descarregado. Se a máquina tiver o endereço ``raspberrypi.local`` o URL a especificar no Browser será ``raspberrypi.local/data/``.
 
-### Configuração wi-fi 
+É necessário assegurar que todo caminho `/home/pi/sound_meterdata`
+tem permissões de acesso (755).
+
+#### Configuração wi-fi 
 A interface wireless é configurada no ficheiro ``$ cat /etc/wpa_supplicant/wpa_supplicant.conf``.
 ```
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -224,7 +272,7 @@ O exemplo contém a configuração para duas redes. A primeira, uma rede domést
 Para contornar esta dificuldade foram seguidas as instruções descritas na conversa:
 ``https://forums.raspberrypi.com/viewtopic.php?t=253567``
 
-### Acesso remoto
+#### Acesso remoto
 
 Para acesso ao sistema como servidor, é conveniente ter uma referência fixa. O endereço IP não é solução porque muda ao longo do tempo. A solução normal é a utilização de DNS.
 
@@ -245,7 +293,7 @@ address=`ipaddress wlan0`
 noip2 -c ~/.no-ip/no-ip2.conf -i $address
 ```
 
-### Configuração *coredump*
+#### Configuração *coredump*
 
 No ficheiro ``/etc/security/limits.conf`` acrescentar: ::
 ```
@@ -269,3 +317,21 @@ $ gdb sound_meter core.xxxxx.yyyyy
 ```
 Depois pode-se usar comandos do gdb.
 Por exemplo: backtrace; up; down.
+
+## Teste
+
+### Teste do cálculo dos níveis
+Deve ser realizado depois das intervenções no código para verificar se o processo de calculo foi corrompido.
+Fazem parte deste teste os ficheiros:
+```
+test.sh
+TestNoise.wav
+TestNoise.wav.ref
+sound_meter_config_test.json
+```
+Para realizar o teste:
+```
+$ test.sh
+```
+
+
