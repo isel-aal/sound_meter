@@ -306,12 +306,15 @@ int main (int argc, char *argv[])
 			}
 		}
 		config_struct->calibration_delta = config_struct->calibration_reference -
-			linear_to_decibel(average_sum / average_n);
+			average_sum / average_n;
 
 		input_device_close();
 
-		if (verbose_flag)
-			printf("\nNew calibration delta: %.1f\n", config_struct->calibration_delta);
+		if (verbose_flag) {
+			printf("\nCalibration reference: %.1f\n", config_struct->calibration_reference);
+			printf("Raw LAE: %.1f\n", average_sum / average_n);
+			printf("Calibration delta: %.1f\n", config_struct->calibration_delta);
+		}
 	}
 
 	//----------------------------------------------------------------------
