@@ -44,13 +44,23 @@ bool input_device_open(Config *config)
 			fprintf(stderr, "snd_pcm_set_params: %s\n", snd_strerror(result));
 			return false;
 		}
-
+#if 0
+		snd_pcm_uframes_t buffer_size, period_size;
+		result = snd_pcm_get_params(device.alsa_handle,
+					&buffer_size, &period_size);
+		if (result < 0) {
+			fprintf(stderr, "snd_pcm_get_params: %s\n", snd_strerror(result));
+			return false;
+		}
+		printf("buffer_size = %lu, period_size = %lu\n", buffer_size, period_size);
+#endif
 		result = snd_pcm_prepare(device.alsa_handle);
 		if (result < 0) {
 			fprintf(stderr, "cannot prepare audio interface for use (%s)\n",
 					snd_strerror(result));
 			return false;
 		}
+		snd_pcm_start(device.alsa_handle);
 	}
 	else {
 		device.device = DEVICE_WAVE;
