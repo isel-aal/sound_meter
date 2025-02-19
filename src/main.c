@@ -100,7 +100,7 @@ int main (int argc, char *argv[])
 
 	signal(SIGINT, int_handler);
 
-	while ((option_char = getopt_long(argc, argv, ":hvi:o:f:r:d:l:t:c:g:",
+	while ((option_char = getopt_long(argc, argv, ":hvd:i:o:f:r:n:t:c:g:",
 			long_options, &option_index)) != -1) {
 		switch (option_char) {
 		case 0:	//	Opções longas com afetação de flag
