@@ -22,7 +22,7 @@ limitations under the License.
 
 static Input_device device;
 
-bool input_device_open(Config *config)
+bool input_device_open(struct config *config)
 {
 	if (config->input_file == NULL)	{
 		device.device = DEVICE_SOUND_CARD;
@@ -412,7 +412,7 @@ Audit *audit_create(char *id)
 	return audit;
 }
 
-static char *audit_make_filename(Config *config, char *id)
+static char *audit_make_filename(struct config *config, char *id)
 {
 	const char *extention = get_extention(config->input_file);
 	char *stem = get_stem(config->input_file);
