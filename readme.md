@@ -21,7 +21,8 @@ O programa pode processar em tempo real som captado por microfone ou processar s
 | Diretoria para ficheiros de saída | data/ | | output_path |
 | Ficheiros de saída | sound_meter_ | | output_filename |
 | Formato de saída | CSV | -f CSV \| JSON | output_format |
-| Ritmo de amostragem | 48000 | -r \<value\> | sample_rate  |
+| Ritmo de amostragem | 44100 | -r \<value\> | sample_rate  |
+| Número de canais | 1 | -a \<nchannels\> | channels |
 | Duração do processamento | | -t \<seconds\> | |
 | Periodo de calibração |  | -c \<seconds\> | |
 | Calibração de referência | 94.0 dba | | calibration_reference |
@@ -37,7 +38,7 @@ O programa pode processar em tempo real som captado por microfone ou processar s
 
 
 ### Definição dos parâmetros de configuração
- 
+
 Identificação
 : Identificação da estação.
 
@@ -49,7 +50,7 @@ Ficheiro de entrada
 
 Ficheiro de saída
 : Ficheiro com os níveis calculados. O formato pode ser CSV ou JSON. Em modo contínuo os nomes dos ficheiros de saída, sucessivamente gerados, são formados pelo dia e hora do momento em que são criados. Por exemplo, ``20221231074155.csv`` será o nome do ficheiro criado a 31/12/2022 às 7:41:55.
- 
+
 Em modo discreto se esta opção for omitida o ficheiro de saída terá o mesmo nome do ficheiro de entrada terminado com a a extensão do formato escolhido. Por exemplo:
 ```
 $ sound_meter -i TestNoise.wav -f JSON
@@ -100,10 +101,10 @@ MQTT broker
 
 MQTT topic
 : Tópico de submissão dos dados.
- 
+
  MQTT QOS
  : Parâmetro QOS do protocolo MQTT.
- 
+
 ### Ficheiro de configuração
 
 O ficheiro de configuração pode ser definido na linha de comando com a opção ``-g``.
@@ -137,7 +138,7 @@ $ make
 $ sudo ./install.sh
 ```
  O *script* ``install.sh`` instala a biblioteca em ``/usr/local/lib``.
- 
+
 Definir o caminho para o local onde a biblioteca foi instalada.
 ```
 $ sudo ldconfig /usr/local/lib
@@ -241,7 +242,7 @@ Neste caso o conteúdo da diretoria ``/home/pi/sound_meter/data`` será mostrado
 É necessário assegurar que todo caminho `/home/pi/sound_meterdata`
 tem permissões de acesso (755).
 
-#### Configuração wi-fi 
+#### Configuração wi-fi
 A interface wireless é configurada no ficheiro ``$ cat /etc/wpa_supplicant/wpa_supplicant.conf``.
 ```
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -278,9 +279,9 @@ Para acesso ao sistema como servidor, é conveniente ter uma referência fixa. O
 
 A solução adotada foi a utilização de Dynamic DNS através do sítio NO-IP. A utilização deste sítio engloba a criação de uma conta em www.noip.com e a utilização de uma aplicação cliente para atualização do endereço IP  (Dynamic Update Cliente - DUC).
 Por omissão, a aplicação cliente atualiza o servidor DNS com o endereço público do *router*. Isso permite a acesso de qualquer ponto da Internet mas implica configurar o router com *port forwarding*. Na rede local do ISEL está fora de questão realizar *port forwarding*.
-A aplicação DUC permite definir o endereço a comunicar ao servidor DNS. Configurando com um endereço local é possível realizar acessos na intranet do ISEL. 
+A aplicação DUC permite definir o endereço a comunicar ao servidor DNS. Configurando com um endereço local é possível realizar acessos na intranet do ISEL.
 
-Para instalar a aplicação DUC seguir as instruções desta página: https://my.noip.com/dynamic-dns/duc. 
+Para instalar a aplicação DUC seguir as instruções desta página: https://my.noip.com/dynamic-dns/duc.
 
 A opção -i permite definir o endereço IP associado ao *hostname*.
 Na página https://my.noip.com/dynamic-dns foi definido o *hostname* ``soundmeter1.ddns.net``.

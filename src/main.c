@@ -248,8 +248,7 @@ int main (int argc, char *argv[])
 	Timeweight *twfilter = timeweight_create();
 	Afilter *afilter = aweighting_create(3);
 
-	int16_t *samples_int16 = malloc(config_struct->channels * config_struct->block_size * sizeof *samples_int16);
-	float *block_a = malloc(config_struct->block_size * sizeof *block_a);
+	float *block_a = malloc(config_struct->channels * config_struct->block_size * sizeof *block_a);
 	float *block_c = malloc(config_struct->block_size * sizeof *block_c);
 
 	// Os buffers de segmento têm capacidade para um segmento e uma dimensão múltipla de um bloco
@@ -273,10 +272,9 @@ int main (int argc, char *argv[])
 		unsigned average_n = 0;
 		printf("\nCalibrating for %d seconds\n",config_struct->calibration_time);
 		while (milisecs < calibration_milisecs) {
-			size_t lenght_read = input_device_read(samples_int16, config_struct->block_size);
+			size_t lenght_read = input_device_read(block_a, config_struct->block_size);
 			if (lenght_read == 0)
 				break;
-			samples_int16_to_float(samples_int16, block_a, lenght_read);
 			float *block_ring_b = sbuffer_write_ptr(ring_b);
 			assert(lenght_read <= sbuffer_write_size(ring_b));	// Há sempre um bloco disponível
 
@@ -356,10 +354,9 @@ int main (int argc, char *argv[])
 	unsigned time_elapsed = 0;	// Tempo que passou baseado na duração do segmento (milisegundos)
 	run_duration *= 1000; 		// Converter para milisegundos
 	while (running && (run_duration == 0 || time_elapsed < run_duration)) {
-		size_t lenght_read = input_device_read(samples_int16, config_struct->block_size);
+		size_t lenght_read = input_device_read(block_a, config_struct->block_size);
 		if (lenght_read == 0)
 			break;
-		samples_int16_to_float(samples_int16, block_a, lenght_read);
 		float *block_ring_b = sbuffer_write_ptr(ring_b);
 		assert(lenght_read <= sbuffer_write_size(ring_b));
 
@@ -441,7 +438,6 @@ int main (int argc, char *argv[])
 	config_destroy(config_struct);
 	free(block_a);
 	free(block_c);
-	free(samples_int16);
 	sbuffer_destroy(ring_b);
 	sbuffer_destroy(ring_d);
 }

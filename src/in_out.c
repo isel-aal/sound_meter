@@ -75,21 +75,47 @@ bool input_device_open(struct config *config)
 	return true;
 }
 
-size_t input_device_read(void *buffer, size_t nframes)
+/**
+ * @brief Lê amostras do dispositivo de entrada -- ficheiro ou placa de som.
+ *
+ * As amostras são depositadas no buffer fornecido como uma sequência de blocos.
+ * Cada bloco tem as amostras de um canal consecutivas. A dimensão de um bloco
+ * é dada pelo número de frames lidas.
+
+ * @param buffer Ponteiro para o buffer onde as amostras são depositadas.
+ * @param nframes Número de frames a ler.
+ * @return Número de frames lidas.
+ */
+size_t input_device_read(float *buffer, size_t nframes)
 {
+	uint16_t *samples_int16 = malloc(nframes * config_struct->channels * sizeof *samples_int16);
+	if (samples_int16 == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		return 0;
+	}
+	size_t read_frames;
 	if (device.device == DEVICE_SOUND_CARD) {
-		snd_pcm_sframes_t read_frames = snd_pcm_readi(device.alsa_handle, buffer, nframes);
+		read_frames = snd_pcm_readi(device.alsa_handle, samples_int16, nframes);
 		if (read_frames < 0) {
 			fprintf(stderr, "read from audio interface failed (%s)\n",
 					snd_strerror(read_frames));
 			return 0;
 		}
-		return read_frames;
 	}
 	else if (device.device == DEVICE_WAVE) {
-		return wave_read_samples(device.wave, buffer, nframes);
+		read_frames = wave_read_samples(device.wave, (char *)samples_int16, nframes);
+		if (read_frames == 0)
+			return 0;
 	}
-	return 0;
+	else {
+		assert(false);	//	Should never reach this point
+		return 0;
+	}
+	samples_int16_to_float(samples_int16, buffer, read_frames * config_struct->channels);
+//	if (config_struct->record_input)
+//		record_append_samples(samples_int16, read_frames);
+	free(samples_int16);
+	return read_frames;
 }
 
 void input_device_close()
@@ -455,20 +481,31 @@ void audit_destroy(Audit *audit)
 	free(audit);
 }
 
-
+/**
+ * Converte uma sequência de frames com amostras intercaladas
+ * para blocos de amostras, um bloco por canal.
+ * As amostras originais são representadas a 16 bits.
+ * As amostras nos blocos são representadas em float e normalizadas no intervalo -1.0 .. +1.0
+ */
 void samples_int16_to_float(int16_t *samples_int16, float *samples_float, unsigned length)
 {
-	for (unsigned i = 0; i < length; i++) {
-		//	Converte para float e normaliza no intervalo +1 ... -1
-		samples_float[i] = (float)samples_int16[i] / ((int)INT16_MAX + 1);
-		assert(samples_float[i] >= -1.0 && samples_float[i] <= +1.0);
+	for (unsigned c = 0; c < config_struct->channels; c++) {
+		float *samples_float_channel = samples_float + c * length;
+		int16_t *samples_int16_channel = samples_int16 + c;
+		for (unsigned i = 0; i < length; i++) {
+			//	Converte para float e normaliza no intervalo +1.0 ... -1.0
+			*samples_float_channel = ((float)*samples_int16_channel) / ((int)INT16_MAX + 1);
+			assert(*samples_float_channel >= -1.0 && *samples_float_channel <= +1.0);
+			samples_float_channel += 1;
+			samples_int16_channel += config_struct->channels;
+		}
 	}
 }
 
 void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsigned length)
 {
 	for (unsigned i = 0; i < length; i++) {
-		//	Converte para int16_t e desnormaliza do intervalo +1 ... -1
+		//	Converte para int16_t e desnormaliza do intervalo +1.0 ... -1.0
 		float a = samples_float[i];
 		uint16_t b = a * ((int)INT16_MAX + 1);
 		samples_int16[i] = b;

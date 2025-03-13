@@ -31,7 +31,7 @@ typedef struct input_device {
 } Input_device;
 
 bool input_device_open(struct config *);
-size_t input_device_read(void *buffer, size_t frames);
+size_t input_device_read(float *buffer, size_t frames);
 void input_device_close();
 
 void output_open(bool);
