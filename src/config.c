@@ -20,8 +20,6 @@ limitations under the License.
 #include <jansson.h>
 #include "config.h"
 
-static json_t *config_json;
-
 static struct config config = {
 	.identification = CONFIG_IDENTIFICATION,
 	.input_device = CONFIG_INPUT_DEVICE,
@@ -44,7 +42,12 @@ static struct config config = {
 	.server_socket = CONFIG_SERVER_SOCKET,
 };
 
-void config_print() 
+struct config *config_struct = &config;
+
+static json_t *config_json;
+
+
+void config_print()
 {
 	printf("Program configuration:\n"
 		"\tIdentification: %s\n"
@@ -85,7 +88,7 @@ void config_print()
 		config_struct->calibration_time,
 		config_struct->calibration_reference,
 		config_struct->calibration_delta,
-		config_struct->mqtt_enable? "enabled" : "disabled",	
+		config_struct->mqtt_enable? "enabled" : "disabled",
 		config_struct->mqtt_broker,
 		config_struct->mqtt_topic,
 		config_struct->mqtt_qos,
@@ -94,113 +97,87 @@ void config_print()
 		);
 }
 
-Config *config_struct = &config;
-
-#define CONFIG_UPDATE_FROM_JSON_STRING(key) \
+#define CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, key) \
 { \
 	json_t *json_object = json_object_get(config_json, #key); \
 	if (json_object != NULL && json_is_string(json_object)) \
-		config->key = json_string_value(json_object); \
+		config_struct->key = json_string_value(json_object); \
 	else \
 		fprintf(stderr, "Config: error updating config_struct ("__FILE__": %d)\n", __LINE__); \
 }
 
-#define CONFIG_UPDATE_FROM_JSON_INTEGER(key) \
+#define CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, key) \
 { \
 	json_t *json_object = json_object_get(config_json, #key); \
 	if (json_object != NULL && json_is_integer(json_object)) \
-		config->key = json_integer_value(json_object); \
+		config_struct->key = json_integer_value(json_object); \
 	else \
 		fprintf(stderr, "Config: error updating config_struct ("__FILE__": %d)\n", __LINE__); \
 }
 
-#define CONFIG_UPDATE_FROM_JSON_REAL(key) \
+#define CONFIG_UPDATE_FROM_JSON_REAL(config_struct, config_json, key) \
 { \
 	json_t *json_object = json_object_get(config_json, #key); \
 	if (json_object != NULL && json_is_real(json_object)) \
-		config->key = json_real_value(json_object); \
+		config_struct->key = json_real_value(json_object); \
 	else \
 		fprintf(stderr, "Config: error updating config_struct ("__FILE__": %d)\n", __LINE__); \
 }
 
-#define CONFIG_UPDATE_FROM_JSON_BOOL(key) \
+#define CONFIG_UPDATE_FROM_JSON_BOOL(config_struct, config_json, key) \
 { \
 	json_t *json_object = json_object_get(config_json, #key); \
 	if (json_object != NULL && json_is_boolean(json_object)) \
-		config->key = json_is_true(json_object); \
+		config_struct->key = json_is_true(json_object); \
 	else \
 		fprintf(stderr, "Config: error updating config_struct ("__FILE__": %d)\n", __LINE__); \
 }
 
-static void config_update_from_json(struct config *config, json_t *config_json) 
+static void config_update_from_json(struct config *config_struct, json_t *config_json)
 {
-	CONFIG_UPDATE_FROM_JSON_STRING(identification);
-	CONFIG_UPDATE_FROM_JSON_STRING(input_device);
-	CONFIG_UPDATE_FROM_JSON_STRING(output_path);
-	CONFIG_UPDATE_FROM_JSON_STRING(output_filename);
-	CONFIG_UPDATE_FROM_JSON_STRING(output_format);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, identification);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, input_device);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, output_path);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, output_filename);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, output_format);
 
-	CONFIG_UPDATE_FROM_JSON_INTEGER(sample_rate);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(bits_per_sample);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(block_size);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(segment_duration);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(record_period);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(file_period);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(laeq_time);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, sample_rate);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, bits_per_sample);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, block_size);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, segment_duration);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, record_period);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, file_period);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, laeq_time);
 
-	CONFIG_UPDATE_FROM_JSON_REAL(calibration_reference);
-	CONFIG_UPDATE_FROM_JSON_REAL(calibration_delta);
+	CONFIG_UPDATE_FROM_JSON_REAL(config_struct, config_json, calibration_reference);
+	CONFIG_UPDATE_FROM_JSON_REAL(config_struct, config_json, calibration_delta);
 
-	CONFIG_UPDATE_FROM_JSON_BOOL(mqtt_enable);
-	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_broker);
-	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_topic);
-	CONFIG_UPDATE_FROM_JSON_INTEGER(mqtt_qos);
-	CONFIG_UPDATE_FROM_JSON_STRING(mqtt_device_credential);
-	CONFIG_UPDATE_FROM_JSON_STRING(server_socket);
-}
-
-#define	CONFIG_UPDATE_TO_JSON_STRING(config_struct, config_json, key) \
-{	\
-	if (config_struct->key != NULL) { \
-		json_t *string_json = json_object_get(config_json, #key); \
-		if (string_json != NULL) { \
-			if (json_string_set(string_json, config_struct->key) != 0) \
-				fprintf(stderr, "Config: error set json string ("__FILE__": %d)\n", __LINE__); \
-			else \
-				config->key = json_string_value(string_json); \
-		} \
-		else { \
-			string_json = json_string(config->key); \
-			if (string_json != NULL) { \
-				if (json_object_set_new(config_json, #key, string_json) != 0) \
-					fprintf(stderr, "Config: error set json string ("__FILE__": %d)\n", __LINE__); \
-			} \
-			else { \
-				fprintf(stderr, "Config: error creating json string ("__FILE__": %d)\n", __LINE__); \
-			} \
-		} \
-	} \
+	CONFIG_UPDATE_FROM_JSON_BOOL(config_struct, config_json, mqtt_enable);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, mqtt_broker);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, mqtt_topic);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, mqtt_qos);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, mqtt_device_credential);
+	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, server_socket);
 }
 
 #define	CONFIG_UPDATE_TO_JSON(type, config_struct, config_json, key) \
 {	\
 	json_t *json_object = json_object_get(config_json, #key); \
 	if (json_object != NULL) { \
-		if (json_##type##_set(json_object, config_struct->key) == 0) \
-			config->key = json_##type##_value(json_object); \
-		else \
-			fprintf(stderr, "Config: error set json integer ("__FILE__": %d)\n", __LINE__); \
+		if (json_##type##_set(json_object, config_struct->key) != 0) \
+			fprintf(stderr, "Error: json_"#type"_set() "__FILE__": %d\n", __LINE__); \
 	} \
 	else { \
-		json_object = json_##type(config->key); \
+		json_object = json_##type(config_struct->key); \
 		if (json_object != NULL) { \
 			if (json_object_set_new(config_json, #key, json_object) != 0) \
-				fprintf(stderr, "Config: error set json " #type " ("__FILE__": %d)\n", __LINE__); \
+				fprintf(stderr, "Error: json_object_set_new "__FILE__": %d\n", __LINE__); \
 		} \
 		else { \
-			fprintf(stderr, "Config: error creating json " #type " ("__FILE__": %d)\n", __LINE__); \
+			fprintf(stderr, "Error; json_"#type __FILE__": %d\n", __LINE__); \
 		} \
 	} \
+	config_struct->key = json_##type##_value(json_object); \
 }
 
 #define	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, key) \
@@ -210,10 +187,10 @@ static void config_update_from_json(struct config *config, json_t *config_json)
 		if (json_integer_set(integer_json, config_struct->key) != 0) \
 			fprintf(stderr, "Config: error set json integer ("__FILE__": %d)\n", __LINE__); \
 		else \
-			config->key = json_integer_value(integer_json); \
+			config_struct->key = json_integer_value(integer_json); \
 	} \
 	else { \
-		integer_json = json_integer(config->key); \
+		integer_json = json_integer(config_struct->key); \
 		if (integer_json != NULL) { \
 			if (json_object_set_new(config_json, #key, integer_json) != 0) \
 				fprintf(stderr, "Config: error set json integer ("__FILE__": %d)\n", __LINE__); \
@@ -231,10 +208,10 @@ static void config_update_from_json(struct config *config, json_t *config_json)
 		if (json_real_set(real_json, config_struct->key) != 0) \
 			fprintf(stderr, "Config: error set json real ("__FILE__": %d)\n", __LINE__); \
 		else \
-			config->key = json_real_value(real_json); \
+			config_struct->key = json_real_value(real_json); \
 	} \
 	else { \
-		real_json = json_real(config->key); \
+		real_json = json_real(config_struct->key); \
 		if (real_json != NULL) { \
 			if (json_object_set_new(config_json, #key, real_json) != 0) \
 				fprintf(stderr, "Config: error set json real ("__FILE__": %d)\n", __LINE__); \
@@ -247,35 +224,35 @@ static void config_update_from_json(struct config *config, json_t *config_json)
 
 #define	CONFIG_UPDATE_TO_JSON_BOOL(config_struct, config_json, key) \
 {	\
-	if (json_object_set_new(config_json, #key, json_boolean(config->key)) != 0) \
+	if (json_object_set_new(config_json, #key, json_boolean(config_struct->key)) != 0) \
 			fprintf(stderr, "Config: error set json integer ("__FILE__": %d)\n", __LINE__); \
 }
 
-static void config_update_to_json(struct config *config, json_t *config_json)
+static void config_update_to_json(struct config *config_struct, json_t *config_json)
 {
-	CONFIG_UPDATE_TO_JSON(string, config, config_json, identification);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, input_device);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, output_path);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, output_filename);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, output_format);
-	
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, sample_rate);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, bits_per_sample);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, block_size);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, segment_duration);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, record_period);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, file_period);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, laeq_time);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, identification);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, input_device);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, output_path);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, output_filename);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, output_format);
 
-	CONFIG_UPDATE_TO_JSON_REAL(config, config_json, calibration_reference);
-	CONFIG_UPDATE_TO_JSON_REAL(config, config_json, calibration_delta);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, sample_rate);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, bits_per_sample);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, block_size);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, segment_duration);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, record_period);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, file_period);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, laeq_time);
 
-	CONFIG_UPDATE_TO_JSON_BOOL(config, config_json, mqtt_enable);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_broker);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_topic);
-	CONFIG_UPDATE_TO_JSON_INTEGER(config, config_json, mqtt_qos);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, mqtt_device_credential);
-	CONFIG_UPDATE_TO_JSON_STRING(config, config_json, server_socket);
+	CONFIG_UPDATE_TO_JSON_REAL(config_struct, config_json, calibration_reference);
+	CONFIG_UPDATE_TO_JSON_REAL(config_struct, config_json, calibration_delta);
+
+	CONFIG_UPDATE_TO_JSON_BOOL(config_struct, config_json, mqtt_enable);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, mqtt_broker);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, mqtt_topic);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, mqtt_qos);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, mqtt_device_credential);
+	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, server_socket);
 }
 
 void config_destroy()

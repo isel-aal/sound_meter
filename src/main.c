@@ -143,10 +143,8 @@ int main (int argc, char *argv[])
 			break;
 		}
 		case ':':
-			if (optopt == 'c') {
-				fprintf(stderr, "Error in option -%c argument\n", optopt);
-				error_in_options = true;
-			}
+			fprintf(stderr, "Error in option -%c argument\n", optopt);
+			error_in_options = true;
 			break;
 		case '?':
 			error_in_options = true;
@@ -241,7 +239,7 @@ int main (int argc, char *argv[])
 	}
 
 	//----------------------------------------------------------------------
-	//	Inicializações 
+	//	Inicializações
 
 	Timeweight *twfilter = timeweight_create();
 	Afilter *afilter = aweighting_create(3);
@@ -282,7 +280,7 @@ int main (int argc, char *argv[])
 			sbuffer_write_produces(ring_b, lenght_read);
 			process_block_square(block_ring_b, block_c, lenght_read);
 			sbuffer_read_consumes(ring_b, lenght_read);
-		
+
 			float *block_ring_d = sbuffer_write_ptr(ring_d);
 			assert(lenght_read <= sbuffer_write_size(ring_d));
 
@@ -293,13 +291,13 @@ int main (int argc, char *argv[])
 				process_segment(levels, ring_d, 0);
 				if (milisecs < CONFIG_CALIBRATION_GUARD * 1000) {
 					if (verbose_flag)
-						puts("-"); 
+						puts("-");
 				}
 				else {
 					average_sum += levels->LAE[0];
 					average_n++;
 					if (verbose_flag)
-						printf("%d\n", (calibration_milisecs - milisecs) / 1000); 
+						printf("%d\n", (calibration_milisecs - milisecs) / 1000);
 				}
 				levels->segment_number = 0;
 				milisecs += config_struct->segment_duration;
@@ -385,7 +383,7 @@ int main (int argc, char *argv[])
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
 			process_segment(levels, ring_d, config_struct->calibration_delta);
 			time_elapsed += config_struct->segment_duration;
-		
+
 			int segment_index = levels->segment_number - 1;
 
 			server_send((uint64_t)time(NULL), levels->LAeq[segment_index],

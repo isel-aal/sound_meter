@@ -67,7 +67,7 @@ limitations under the License.
 
 #define CONFIG_SERVER_SOCKET	"sound_meter_server_socket"
 
-typedef struct config
+struct config
 {
 	const char *identification;	// identificador da estação
 	const char *input_device;	// identificador da card de som
@@ -96,13 +96,13 @@ typedef struct config
 	const char *mqtt_device_credential;
 	// int mqtt_publish_period;
 	const char *server_socket;
-} Config;
+};
 
 struct config *config_load(const char *config_filename);
 void config_save(const char *config_filename);
 void config_destroy();
 void config_print();
 
-extern Config *config_struct;
+extern struct config *config_struct;
 
 #endif
