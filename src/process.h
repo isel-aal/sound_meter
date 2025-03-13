@@ -42,21 +42,23 @@ static inline float decibel_to_linear(float decibel)
 
 typedef struct {
 	unsigned segment_number;
-	float *LAeq;	//	Valores calculados para cada segmento, num periodo de tempo
+	float *LAeq;
 	float *LApeak;
 	float *LAFmax;
 	float *LAFmin;
 	float *LAE;
+	int direction;	//	Direção da fonte sonora (0-360 graus)
 } Levels;
 
 Levels *levels_create();
 void levels_destroy(Levels *);
 
 void process_block_square(float *input, float *output, unsigned length);
-void process_segment_lapeak(Levels *levels, struct sbuffer *ring, float calibration_delta);
-void process_segment(Levels *levels, struct sbuffer *ring, float calibration_delta);
+void process_segment_lapeak(Levels *levels, struct sbuffer *ring, struct config *config);
+void process_segment_levels(Levels *levels, struct sbuffer *ring, struct config *config);
+void process_segment_direction(Levels *levels, struct sbuffer *ring[], struct config *config);
 
-void lae_average_create(unsigned laeq_time);					//	Para cálculo de LAeq
+void lae_average_create(unsigned laeq_time);	//	Para cálculo de LAeq
 void lae_average_destroy();
 
 typedef struct {

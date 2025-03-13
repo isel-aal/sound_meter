@@ -100,7 +100,7 @@ static inline unsigned min(unsigned a, unsigned b) {
 	return a < b ? a : b;
 }
 
-void process_segment_lapeak(Levels *levels, struct sbuffer *ring, float calibration_delta)
+void process_segment_lapeak(Levels *levels, struct sbuffer *ring, struct config *config)
 {
 	/* Só processa ao fim de um segmento */
 	if (sbuffer_size(ring) >= config_struct->segment_size) {
@@ -126,11 +126,11 @@ void process_segment_lapeak(Levels *levels, struct sbuffer *ring, float calibrat
 			}
 			sbuffer_read_consumes(ring, size);
 		}
-		levels->LApeak[levels->segment_number] = linear_to_decibel(peak) + calibration_delta;
+		levels->LApeak[levels->segment_number] = linear_to_decibel(peak) + config->calibration_delta;
 	}
 }
 
-void process_segment(Levels *levels, struct sbuffer *ring, float calibration_delta)
+void process_segment_levels(Levels *levels, struct sbuffer *ring, struct config *config)
 {
 	/* Só processa se o número de amostras disponível for maior ou igual a um segmento */
 	assert(sbuffer_size(ring) >= config_struct->segment_size);
@@ -169,9 +169,19 @@ void process_segment(Levels *levels, struct sbuffer *ring, float calibration_del
 	float lafmax = sqrt(sample_max);
 	float lafmin = sqrt(sample_min);
 	float laeq = lae_average(lae);
-	levels->LAeq[levels->segment_number] = linear_to_decibel(laeq) + calibration_delta;
-	levels->LAFmax[levels->segment_number] = linear_to_decibel(lafmax) + calibration_delta;
-	levels->LAFmin[levels->segment_number] = linear_to_decibel(lafmin) + calibration_delta;
-	levels->LAE[levels->segment_number] = linear_to_decibel(lae) + calibration_delta;
+	levels->LAeq[levels->segment_number] = linear_to_decibel(laeq) + config->calibration_delta;
+	levels->LAFmax[levels->segment_number] = linear_to_decibel(lafmax) + config->calibration_delta;
+	levels->LAFmin[levels->segment_number] = linear_to_decibel(lafmin) + config->calibration_delta;
+	levels->LAE[levels->segment_number] = linear_to_decibel(lae) + config->calibration_delta;
 	levels->segment_number++;
+}
+
+/**
+ * @brief Processa a direção do som domante
+ *
+ * @param ring Array de buffers de segmentos
+ * @param config Configuração do sistema
+ */
+void process_segment_direction(Levels *levels, struct sbuffer *ring[], struct config *config)
+{
 }

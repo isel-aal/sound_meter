@@ -275,6 +275,7 @@ int main (int argc, char *argv[])
 			size_t lenght_read = input_device_read(block_a, config_struct->block_size);
 			if (lenght_read == 0)
 				break;
+
 			float *block_ring_b = sbuffer_write_ptr(ring_b);
 			assert(lenght_read <= sbuffer_write_size(ring_b));	// Há sempre um bloco disponível
 
@@ -290,7 +291,7 @@ int main (int argc, char *argv[])
 			sbuffer_write_produces(ring_d, lenght_read);
 
 			if (sbuffer_size(ring_d) >= config_struct->segment_size) {
-				process_segment(levels, ring_d, 0);
+				process_segment_levels(levels, ring_d, 0);
 				if (milisecs < CONFIG_CALIBRATION_GUARD * 1000) {
 					if (verbose_flag)
 						puts("-");
@@ -357,6 +358,7 @@ int main (int argc, char *argv[])
 		size_t lenght_read = input_device_read(block_a, config_struct->block_size);
 		if (lenght_read == 0)
 			break;
+
 		float *block_ring_b = sbuffer_write_ptr(ring_b);
 		assert(lenght_read <= sbuffer_write_size(ring_b));
 
@@ -364,7 +366,7 @@ int main (int argc, char *argv[])
 
 		sbuffer_write_produces(ring_b, lenght_read);
 
-		process_segment_lapeak(levels, ring_b, config_struct->calibration_delta);
+		process_segment_lapeak(levels, ring_b, config_struct);
 
 		process_block_square(block_ring_b, block_c, lenght_read);
 
@@ -382,7 +384,7 @@ int main (int argc, char *argv[])
 		}
 
 		if (sbuffer_size(ring_d) >= config_struct->segment_size) {
-			process_segment(levels, ring_d, config_struct->calibration_delta);
+			process_segment_levels(levels, ring_d, config_struct);
 			time_elapsed += config_struct->segment_duration;
 
 			int segment_index = levels->segment_number - 1;
