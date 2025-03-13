@@ -36,7 +36,7 @@ bool input_device_open(struct config *config)
 		result = snd_pcm_set_params(device.alsa_handle,
 					CONFIG_PCM_FORMAT, /* mudar */
 					SND_PCM_ACCESS_RW_INTERLEAVED,
-					1,
+					config->channels,
 					config->sample_rate,
 					1,
 					500000); /* 0.5 sec */

@@ -103,7 +103,7 @@ int main (int argc, char *argv[])
 
 	signal(SIGINT, int_handler);
 
-	while ((option_char = getopt_long(argc, argv, ":hvd:i:o:f:r:n:t:c:g:",
+	while ((option_char = getopt_long(argc, argv, ":hvd:i:o:f:r:a:n:t:c:g:",
 			long_options, &option_index)) != -1) {
 		switch (option_char) {
 		case 0:	//	Opções longas com afetação de flag
@@ -221,7 +221,7 @@ int main (int argc, char *argv[])
 		config_struct->sample_rate = atoi(option_sample_rate);
 
 	if (option_channels != NULL)
-		config_struct->channels = atoi(option_sample_rate);
+		config_struct->channels = atoi(option_channels);
 
 	if (option_identification != NULL)
 		config_struct->identification = option_identification;
