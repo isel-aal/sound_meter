@@ -45,7 +45,8 @@ limitations under the License.
 
 #define CONFIG_MARGIN 0 //	pow(10, -10)        	// margem de -100dB
 
-#define CONFIG_SAMPLE_RATE	48000
+#define CONFIG_SAMPLE_RATE	44100	// ritmo de amostragem
+#define CONFIG_CHANNELS		1	// número de canais
 #define CONFIG_SEGMENT_DURATION 1000	// duração de um segmento em milisegundos
 #define CONFIG_BLOCK_SIZE 	1024	// dimensão de um bloco em número de amostras
 
@@ -77,6 +78,7 @@ struct config
 	const char *output_format;	// formato dos dados de saída (extensão do ficheiro de saída)
 
 	unsigned sample_rate;		// ritmo de amostragem
+	unsigned channels;		// número de canais
 	unsigned bits_per_sample;	// número de bits por amostra
 	unsigned block_size;		// dimensão de um bloco em número de amostras
 	unsigned segment_duration;	// duração de um segmento de processamento

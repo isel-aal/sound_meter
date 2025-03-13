@@ -52,6 +52,7 @@ static void help(char *prog_name)
 		"\t-o, --output <file name>\n"
 		"\t-f, --output_format <csv | json>\n"
 		"\t-r, --sample_rate <rate>\n"
+		"\t-a, --channels <channels>\n"
 		"\t-n, --identification <name>\n"
 		"\t-t, --duration <seconds>\n"
 		"\t-c, --calibrate <seconds>\n"
@@ -78,6 +79,7 @@ int main (int argc, char *argv[])
 		{"output", required_argument, 0, 'o'},
 		{"output_format", required_argument, 0, 'f'},
 		{"sample_rate", required_argument, 0, 'r'},
+		{"channels", required_argument, 0, 'a'},
 		{"identification", required_argument, 0, 'n'},
 		{"duration", required_argument, 0, 't'},
 		{"calibrate", optional_argument, 0, 'c'},
@@ -93,6 +95,7 @@ int main (int argc, char *argv[])
 	char *option_output_filename = NULL;
 	char *option_output_format = NULL;
 	char *option_sample_rate = NULL;
+	char *option_channels = NULL;
 	char *option_identification = NULL;
 	char *option_calibration_time = NULL;
 	char *option_config_filename = NULL;
@@ -126,22 +129,21 @@ int main (int argc, char *argv[])
 		case 'g':
 			option_config_filename = optarg;
 			break;
-		case 'r': {
+		case 'r':
 			option_sample_rate = optarg;
 			break;
-		}
-		case 'n': {
+		case 'a':
+			option_channels = optarg;
+			break;
+		case 'n':
 			option_identification = optarg;
 			break;
-		}
-		case 't': {
+		case 't':
 			run_duration = atoi(optarg);
 			break;
-		}
-		case 'c': {
+		case 'c':
 			option_calibration_time = optarg;
 			break;
-		}
 		case ':':
 			fprintf(stderr, "Error in option -%c argument\n", optopt);
 			error_in_options = true;
@@ -215,9 +217,11 @@ int main (int argc, char *argv[])
 	if (option_output_format != NULL)
 		config_struct->output_format = option_output_format;
 
-	if (option_sample_rate != NULL) {
+	if (option_sample_rate != NULL)
 		config_struct->sample_rate = atoi(option_sample_rate);
-	}
+
+	if (option_channels != NULL)
+		config_struct->channels = atoi(option_sample_rate);
 
 	if (option_identification != NULL)
 		config_struct->identification = option_identification;

@@ -27,6 +27,7 @@ static struct config config = {
 	.output_filename = CONFIG_OUTPUT_FILENAME,
 	.output_format = CONFIG_OUTPUT_FORMAT,
 	.sample_rate = CONFIG_SAMPLE_RATE,
+	.channels = CONFIG_CHANNELS,
 	.bits_per_sample = CONFIG_BITS_PER_SAMPLE,
 	.block_size = CONFIG_BLOCK_SIZE,
 	.segment_duration = CONFIG_SEGMENT_DURATION,
@@ -57,6 +58,7 @@ void config_print()
 		"\tOutput file: %s\n"
 		"\tOutput format: %s\n"
 		"\tSample Rate: %d\n"
+		"\tChannels: %d\n"
 		"\tBits per sample: %d\n"
 		"\tBlock size: %d samples\n"
 		"\tSegment duration: %d miliseconds\n"
@@ -79,6 +81,7 @@ void config_print()
 		config_struct->output_filename,
 		config_struct->output_format,
 		config_struct->sample_rate,
+		config_struct->channels,
 		config_struct->bits_per_sample,
 		config_struct->block_size,
 		config_struct->segment_duration,
@@ -142,6 +145,7 @@ static void config_update_from_json(struct config *config_struct, json_t *config
 	CONFIG_UPDATE_FROM_JSON_STRING(config_struct, config_json, output_format);
 
 	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, sample_rate);
+	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, channels);
 	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, bits_per_sample);
 	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, block_size);
 	CONFIG_UPDATE_FROM_JSON_INTEGER(config_struct, config_json, segment_duration);
@@ -237,6 +241,7 @@ static void config_update_to_json(struct config *config_struct, json_t *config_j
 	CONFIG_UPDATE_TO_JSON(string, config_struct, config_json, output_format);
 
 	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, sample_rate);
+	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, channels);
 	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, bits_per_sample);
 	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, block_size);
 	CONFIG_UPDATE_TO_JSON_INTEGER(config_struct, config_json, segment_duration);
