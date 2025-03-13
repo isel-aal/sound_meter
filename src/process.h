@@ -40,9 +40,6 @@ static inline float decibel_to_linear(float decibel)
 	return CONFIG_PRESSURE_REFERENCE * pow(10, decibel / 20.0f);
 }
 
-void samples_int16_to_float(int16_t *samples_int16, float *samples_float, unsigned length);
-void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsigned length);
-
 typedef struct {
 	unsigned segment_number;
 	float *LAeq;	//	Valores calculados para cada segmento, num periodo de tempo

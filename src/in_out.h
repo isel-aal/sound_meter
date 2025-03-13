@@ -52,4 +52,7 @@ Audit *audit_create(char *id);
 int audit_append_samples(Audit *audit, float *block, unsigned length);
 void audit_destroy(Audit *audit);
 
+void samples_int16_to_float(int16_t *samples_int16, float *samples_float, unsigned length);
+void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsigned length);
+
  #endif

@@ -25,27 +25,6 @@ ao PFC MoSEMusic realizado por Guilherme Albano e David Meneses
 #include "config.h"
 #include "ring.h"
 
-void samples_int16_to_float(int16_t *samples_int16, float *samples_float, unsigned length)
-{
-	for (unsigned i = 0; i < length; i++) {
-		//	Converte para float e normaliza no intervalo +1 ... -1
-		samples_float[i] = (float)samples_int16[i] / ((int)INT16_MAX + 1);
-		assert(samples_float[i] >= -1.0 && samples_float[i] <= +1.0);
-	}
-}
-
-void samples_float_to_int16(float *samples_float, int16_t *samples_int16, unsigned length)
-{
-	for (unsigned i = 0; i < length; i++) {
-		//	Converte para int16_t e desnormaliza do intervalo +1 ... -1
-		float a = samples_float[i];
-		uint16_t b = a * ((int)INT16_MAX + 1);
-		samples_int16[i] = b;
-	}
-}
-
-//==============================================================================
-
 static double laeq_accumulator;
 static size_t laeq_counter;
 
