@@ -100,7 +100,7 @@ static inline unsigned min(unsigned a, unsigned b) {
 	return a < b ? a : b;
 }
 
-void process_segment_lapeak(Levels *levels, Sbuffer *ring, float calibration_delta)
+void process_segment_lapeak(Levels *levels, struct sbuffer *ring, float calibration_delta)
 {
 	/* Só processa ao fim de um segmento */
 	if (sbuffer_size(ring) >= config_struct->segment_size) {
@@ -130,7 +130,7 @@ void process_segment_lapeak(Levels *levels, Sbuffer *ring, float calibration_del
 	}
 }
 
-void process_segment(Levels *levels, Sbuffer *ring, float calibration_delta)
+void process_segment(Levels *levels, struct sbuffer *ring, float calibration_delta)
 {
 	/* Só processa se o número de amostras disponível for maior ou igual a um segmento */
 	assert(sbuffer_size(ring) >= config_struct->segment_size);

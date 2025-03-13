@@ -53,8 +53,8 @@ Levels *levels_create();
 void levels_destroy(Levels *);
 
 void process_block_square(float *input, float *output, unsigned length);
-void process_segment_lapeak(Levels *levels, Sbuffer *ring, float calibration_delta);
-void process_segment(Levels *levels, Sbuffer *ring, float calibration_delta);
+void process_segment_lapeak(Levels *levels, struct sbuffer *ring, float calibration_delta);
+void process_segment(Levels *levels, struct sbuffer *ring, float calibration_delta);
 
 void lae_average_create(unsigned laeq_time);					//	Para cálculo de LAeq
 void lae_average_destroy();

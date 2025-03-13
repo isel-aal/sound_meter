@@ -3,12 +3,22 @@
 
 #include "sbuffer.h"
 
+struct sbuffer {
+    float *buffer;        //  ponteiro para a zona de dados
+    unsigned get;         //  posição de leitura
+    unsigned put;         //  posição de escrita
+    unsigned get_counter; //  contador de caracteres retirados
+    unsigned put_counter; //  contador de caracteres colocados
+    unsigned capacity;    //  capacidade do buffer
+    unsigned max_counter; //  maior ocupação do buffer (para debug)
+};
+
 static inline unsigned min(unsigned a, unsigned b) {
     return a < b ? a : b;
 }
 
-Sbuffer *sbuffer_create(unsigned capacity) {
-    Sbuffer *this = malloc(sizeof *this);
+struct sbuffer *sbuffer_create(unsigned capacity) {
+    struct sbuffer *this = malloc(sizeof *this);
     if (this == NULL)
         return NULL;
     this->capacity = capacity;
@@ -22,28 +32,28 @@ Sbuffer *sbuffer_create(unsigned capacity) {
     return this;
 }
 
-void sbuffer_destroy(Sbuffer *this) {
+void sbuffer_destroy(struct sbuffer *this) {
     free(this->buffer);
 	free(this);
 }
 
-unsigned sbuffer_size(Sbuffer *this) {
+unsigned sbuffer_size(struct sbuffer *this) {
     return this->put_counter - this->get_counter;
 }
 
-unsigned sbuffer_capacity(Sbuffer *this) {
+unsigned sbuffer_capacity(struct sbuffer *this) {
     return this->capacity;
 }
 
-float *sbuffer_read_ptr(Sbuffer *this) {
+float *sbuffer_read_ptr(struct sbuffer *this) {
     return &this->buffer[this->get];
 }
 
-unsigned sbuffer_read_size(Sbuffer *this) {
+unsigned sbuffer_read_size(struct sbuffer *this) {
     return min(sbuffer_size(this), sbuffer_capacity(this) - this->get);
 }
 
-void sbuffer_read_consumes(Sbuffer *this, unsigned n) {
+void sbuffer_read_consumes(struct sbuffer *this, unsigned n) {
     assert(this->get < sbuffer_capacity(this));
     this->get += n;
     if (this->get >= sbuffer_capacity(this))
@@ -52,15 +62,15 @@ void sbuffer_read_consumes(Sbuffer *this, unsigned n) {
     assert(this->get < sbuffer_capacity(this));
 }
 
-float *sbuffer_write_ptr(Sbuffer *this) {
+float *sbuffer_write_ptr(struct sbuffer *this) {
     return &this->buffer[this->put];
 }
 
-unsigned sbuffer_write_size(Sbuffer *this) {
+unsigned sbuffer_write_size(struct sbuffer *this) {
     return min(sbuffer_capacity(this) - sbuffer_size(this), sbuffer_capacity(this) - this->put);
 }
 
-void sbuffer_write_produces(Sbuffer *this, unsigned n) {
+void sbuffer_write_produces(struct sbuffer *this, unsigned n) {
     assert(this->put < this->capacity);
     assert(n <= sbuffer_free(this));
     this->put += n;
@@ -73,6 +83,6 @@ void sbuffer_write_produces(Sbuffer *this, unsigned n) {
     assert(this->max_counter <= sbuffer_capacity(this));
 }
 
-unsigned sbuffer_free(Sbuffer *this) {
+unsigned sbuffer_free(struct sbuffer *this) {
 	return this->capacity - sbuffer_size(this);
 }

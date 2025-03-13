@@ -3,36 +3,61 @@
 
 #include <stddef.h>
 
-typedef struct sbuffer {
-    float *buffer;        //  ponteiro para a zona de dados
-    unsigned get;         //  posição de leitura
-    unsigned put;         //  posição de escrita
-    unsigned get_counter; //  contador de caracteres retirados
-    unsigned put_counter; //  contador de caracteres colocados
-    unsigned capacity;    //  capacidade do buffer
-    unsigned max_counter; //  maior ocupação do buffer (para debug)
-} Sbuffer;
+struct sbuffer;
 
-Sbuffer *sbuffer_create(unsigned size);
+/**
+ * @brief Cria um buffer de tamanho size.
+ */
+struct sbuffer *sbuffer_create(unsigned size);
 
-void sbuffer_destroy(Sbuffer *this);
+/**
 
-unsigned sbuffer_size(Sbuffer *this);
+ */
+void sbuffer_destroy(struct sbuffer *this);
 
-unsigned sbuffer_capacity(Sbuffer *this);
+/**
+ * @brief Retorna o número de elementos no buffer.
+ */
+unsigned sbuffer_size(struct sbuffer *this);
 
-float *sbuffer_read_ptr(Sbuffer *this);
+/**
+ * @brief Retorna a capacidade do buffer.
+ */
+unsigned sbuffer_capacity(struct sbuffer *this);
 
-unsigned sbuffer_read_size(Sbuffer *this);
+/**
+ * @brief Retorna um ponteiro para a zona de leitura.
+ */
+float *sbuffer_read_ptr(struct sbuffer *this);
 
-void sbuffer_read_consumes(Sbuffer *this, unsigned n);
+/**
+ * @brief Retorna o número de elementos que podem ser lidos.
+ */
+unsigned sbuffer_read_size(struct sbuffer *this);
 
-float *sbuffer_write_ptr(Sbuffer *this);
+/**
+ * @brief Avança o ponteiro de leitura.
+ */
+void sbuffer_read_consumes(struct sbuffer *this, unsigned n);
 
-unsigned sbuffer_write_size(Sbuffer *this);
+/**
+ * @brief Retorna um ponteiro para a zona de escrita.
+ */
+float *sbuffer_write_ptr(struct sbuffer *this);
 
-void sbuffer_write_produces(Sbuffer *this, unsigned n);
+/**
+ * @brief Retorna o número de elementos que podem ser escritos.
+ */
+unsigned sbuffer_write_size(struct sbuffer *this);
 
-unsigned sbuffer_free(Sbuffer *);
+/**
+ * @brief Avança o ponteiro de escrita.
+ */
+void sbuffer_write_produces(struct sbuffer *this, unsigned n);
+
+/**
+ * @brief Retorna o número de posições livres no buffer.
+ */
+unsigned sbuffer_free(struct sbuffer *);
 
 #endif

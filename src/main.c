@@ -255,8 +255,8 @@ int main (int argc, char *argv[])
 	unsigned segment_buffer_size = (((config_struct->segment_size + config_struct->block_size - 1)
 								/ config_struct->block_size) + 1)
 								* config_struct->block_size;
-	Sbuffer *ring_b = sbuffer_create(segment_buffer_size);
-	Sbuffer *ring_d = sbuffer_create(segment_buffer_size);
+	struct sbuffer *ring_b = sbuffer_create(segment_buffer_size);
+	struct sbuffer *ring_d = sbuffer_create(segment_buffer_size);
 
 	Levels *levels = levels_create();
 
