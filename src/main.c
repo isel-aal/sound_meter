@@ -248,14 +248,14 @@ int main (int argc, char *argv[])
 	Timeweight *twfilter = timeweight_create();
 	Afilter *afilter = aweighting_create(3);
 
-	int16_t *samples_int16 = malloc(CONFIG_BLOCK_SIZE * sizeof *samples_int16);
-	float *block_a = malloc(CONFIG_BLOCK_SIZE * sizeof *block_a);
-	float *block_c = malloc(CONFIG_BLOCK_SIZE * sizeof *block_c);
+	int16_t *samples_int16 = malloc(config_struct->channels * config_struct->block_size * sizeof *samples_int16);
+	float *block_a = malloc(config_struct->block_size * sizeof *block_a);
+	float *block_c = malloc(config_struct->block_size * sizeof *block_c);
 
 	// Os buffers de segmento têm capacidade para um segmento e uma dimensão múltipla de um bloco
-	unsigned segment_buffer_size = (((config_struct->segment_size + CONFIG_BLOCK_SIZE - 1)
-								/ CONFIG_BLOCK_SIZE) + 1)
-								* CONFIG_BLOCK_SIZE;
+	unsigned segment_buffer_size = (((config_struct->segment_size + config_struct->block_size - 1)
+								/ config_struct->block_size) + 1)
+								* config_struct->block_size;
 	Sbuffer *ring_b = sbuffer_create(segment_buffer_size);
 	Sbuffer *ring_d = sbuffer_create(segment_buffer_size);
 
@@ -273,7 +273,7 @@ int main (int argc, char *argv[])
 		unsigned average_n = 0;
 		printf("\nCalibrating for %d seconds\n",config_struct->calibration_time);
 		while (milisecs < calibration_milisecs) {
-			size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
+			size_t lenght_read = input_device_read(samples_int16, config_struct->block_size);
 			if (lenght_read == 0)
 				break;
 			samples_int16_to_float(samples_int16, block_a, lenght_read);
@@ -356,7 +356,7 @@ int main (int argc, char *argv[])
 	unsigned time_elapsed = 0;	// Tempo que passou baseado na duração do segmento (milisegundos)
 	run_duration *= 1000; 		// Converter para milisegundos
 	while (running && (run_duration == 0 || time_elapsed < run_duration)) {
-		size_t lenght_read = input_device_read(samples_int16, CONFIG_BLOCK_SIZE);
+		size_t lenght_read = input_device_read(samples_int16, config_struct->block_size);
 		if (lenght_read == 0)
 			break;
 		samples_int16_to_float(samples_int16, block_a, lenght_read);
