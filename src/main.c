@@ -204,8 +204,6 @@ int main (int argc, char *argv[])
 
 	config_struct = config_load(config_pathname);
 
-	free(config_pathname);
-
 	// As opções de linha de comando prevalecem sobre o ficheiro de configuração
 
 	if (option_device_filename != NULL)
@@ -419,8 +417,9 @@ int main (int argc, char *argv[])
 	output_record(levels);
 
 	if (verbose_flag)
-		printf("Saving configuration in " CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME "\n");
-	config_save(CONFIG_CONFIG_FILEPATH CONFIG_CONFIG_FILENAME);
+		printf("Saving configuration in %s\n", config_pathname);
+	config_save(config_pathname);
+	free(config_pathname);
 
 	if (!continuous) {
 		audit_destroy(wa);
