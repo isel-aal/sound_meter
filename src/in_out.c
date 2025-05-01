@@ -88,7 +88,7 @@ bool input_device_open(struct config *config)
  */
 size_t input_device_read(float *buffer, size_t nframes)
 {
-	uint16_t *samples_int16 = malloc(nframes * config_struct->channels * sizeof *samples_int16);
+	int16_t *samples_int16 = malloc(nframes * config_struct->channels * sizeof *samples_int16);
 	if (samples_int16 == NULL) {
 		fprintf(stderr, "Out of memory\n");
 		return 0;
@@ -111,7 +111,7 @@ size_t input_device_read(float *buffer, size_t nframes)
 		assert(false);	//	Should never reach this point
 		return 0;
 	}
-	samples_int16_to_float(samples_int16, buffer, read_frames * config_struct->channels);
+	samples_int16_to_float(samples_int16, buffer, read_frames);
 //	if (config_struct->record_input)
 //		record_append_samples(samples_int16, read_frames);
 	free(samples_int16);
